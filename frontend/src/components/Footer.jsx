@@ -10,7 +10,8 @@ const Footer = () => {
                 <img src={assets.logo} className='mb-5 w-32' alt="" />
                 <p className='w-full md:w-2/3 text-gray-600'>
                 We are committed to bringing you stylish, high-quality products at affordable prices.
-Our goal is to make online shopping simple, enjoyable, and reliable.
+Our goal is to make online shopping simple, enjoyable, and reliable.enjoy it
+                  
                 </p>
             </div>
             <div>
