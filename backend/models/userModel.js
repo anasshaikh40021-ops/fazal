@@ -3,15 +3,36 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    cartData: { type: Object, default: {} },
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+    },
+
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+
+    cartData: {
+      type: Object,
+      default: {},
+    },
+
+    // 🔐 PASSWORD RESET
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
   { minimize: false }
 );
 
-// Correct model name + reuse check
-const User =
-  mongoose.models.User || mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 export default User;
