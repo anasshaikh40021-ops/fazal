@@ -13,8 +13,6 @@ const Collection = () => {
   const [subCategory, setSubCategory] = useState([]);
   const [sortType, setSortType] = useState('relavent');
 
-  /* ---------------- TOGGLE FILTERS ---------------- */
-
   const toggleCategory = (e) => {
     const value = e.target.value;
     setCategory((prev) =>
@@ -33,29 +31,27 @@ const Collection = () => {
     );
   };
 
-  /* ---------------- FILTER + SORT ---------------- */
-
   useEffect(() => {
     let tempProducts = [...products];
 
     // Search filter
-    if (showSearch && search) {
+    if (search) {
       tempProducts = tempProducts.filter((item) =>
         item.name.toLowerCase().includes(search.toLowerCase())
       );
     }
 
-    // Category filter
+    // Category filter (case-insensitive)
     if (category.length > 0) {
       tempProducts = tempProducts.filter((item) =>
-        category.includes(item.category)
+        category.map(c => c.toLowerCase()).includes(item.category?.toLowerCase())
       );
     }
 
-    // Sub-category filter
+    // Sub-category filter (case-insensitive)
     if (subCategory.length > 0) {
       tempProducts = tempProducts.filter((item) =>
-        subCategory.includes(item.subCategory)
+        subCategory.map(s => s.toLowerCase()).includes(item.subCategory?.toLowerCase())
       );
     }
 
@@ -67,14 +63,10 @@ const Collection = () => {
     }
 
     setFilterProducts(tempProducts);
-  }, [products, category, subCategory, sortType, search, showSearch]);
-
-  /* ---------------- UI ---------------- */
+  }, [products, category, subCategory, sortType, search]);
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 sm:gap-10 pt-10 border-t">
-
-      {/* FILTER SIDEBAR */}
       <div className="min-w-60">
         <p
           className="my-2 text-xl flex items-center cursor-pointer gap-2"
@@ -90,35 +82,22 @@ const Collection = () => {
           />
         </p>
 
-        <div
-          className={`border border-gray-300 pl-5 py-3 mt-6
-          ${showFilter ? 'block' : 'hidden'} sm:block`}
-        >
-          {/* CATEGORIES */}
+        <div className={`border border-gray-300 pl-5 py-3 mt-6 ${showFilter ? 'block' : 'hidden'} sm:block`}>
           <p className="mb-3 text-sm font-medium">CATEGORIES</p>
           <div className="flex flex-col gap-2 text-sm text-gray-700">
             {['Men', 'Women', 'Kids'].map((item) => (
               <label key={item} className="flex gap-2">
-                <input
-                  type="checkbox"
-                  value={item}
-                  onChange={toggleCategory}
-                />
+                <input type="checkbox" value={item} onChange={toggleCategory} />
                 {item}
               </label>
             ))}
           </div>
 
-          {/* TYPE */}
           <p className="mb-3 mt-6 text-sm font-medium">TYPE</p>
           <div className="flex flex-col gap-2 text-sm text-gray-700">
             {['Topwear', 'Bottomwear', 'Winterwear'].map((item) => (
               <label key={item} className="flex gap-2">
-                <input
-                  type="checkbox"
-                  value={item}
-                  onChange={toggleSubCategory}
-                />
+                <input type="checkbox" value={item} onChange={toggleSubCategory} />
                 {item}
               </label>
             ))}
@@ -126,15 +105,10 @@ const Collection = () => {
         </div>
       </div>
 
-      {/* PRODUCTS */}
       <div className="flex-1">
         <div className="flex justify-between text-base sm:text-2xl mb-4">
           <Title text1="ALL" text2="COLLECTIONS" />
-
-          <select
-            onChange={(e) => setSortType(e.target.value)}
-            className="border-2 border-gray-300 text-sm px-2"
-          >
+          <select onChange={(e) => setSortType(e.target.value)} className="border-2 border-gray-300 text-sm px-2">
             <option value="relavent">Sort by : Relevant</option>
             <option value="low-high">Sort by : Low to High</option>
             <option value="high-low">Sort by : High to Low</option>
@@ -142,9 +116,7 @@ const Collection = () => {
         </div>
 
         {filterProducts.length === 0 ? (
-          <p className="text-center text-gray-500">
-            No products found
-          </p>
+          <p className="text-center text-gray-500">No products found</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 gap-y-6">
             {filterProducts.map((item) => (

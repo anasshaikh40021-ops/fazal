@@ -13,6 +13,7 @@ const ShopContextProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState("");
+  const [role, setRole] = useState(""); // ✅ ADDED
 
   const navigate = useNavigate();
 
@@ -37,7 +38,7 @@ const ShopContextProvider = ({ children }) => {
       );
 
       if (res.data.success) {
-        setCartItems(res.data.cartData); // ✅ ONLY backend source
+        setCartItems(res.data.cartData);
       }
     } catch (error) {
       console.log(error);
@@ -93,7 +94,7 @@ const ShopContextProvider = ({ children }) => {
   const getCartAmount = () => {
     let total = 0;
     for (const id in cartItems) {
-      const product = products.find(p => p._id === id);
+      const product = products.find((p) => p._id === id);
       if (!product) continue;
 
       for (const size in cartItems[id]) {
@@ -124,11 +125,14 @@ const ShopContextProvider = ({ children }) => {
 
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
+    const savedRole = localStorage.getItem("role"); // ✅ ADDED
+
     if (savedToken) setToken(savedToken);
+    if (savedRole) setRole(savedRole);
   }, []);
 
   useEffect(() => {
-    if (token) getUserCart(); // ✅ load cart ONCE
+    if (token) getUserCart();
   }, [token]);
 
   return (
@@ -146,7 +150,9 @@ const ShopContextProvider = ({ children }) => {
         navigate,
         token,
         setToken,
-        backendUrl
+        role,       // ✅ ADDED
+        setRole,    // ✅ ADDED
+        backendUrl,
       }}
     >
       {children}
