@@ -1,23 +1,23 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { ShopContext } from '../context/ShopContext';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useContext, useEffect, useState } from "react";
+import { ShopContext } from "../context/ShopContext";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const Login = () => {
   const { token, setToken, navigate, backendUrl } = useContext(ShopContext);
 
-  const [mode, setMode] = useState('login'); // login | register
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState("login"); // login | register
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const submitHandler = async (e) => {
     e.preventDefault();
 
     try {
-      if (mode === 'register') {
+      if (mode === "register") {
         const res = await axios.post(
-          backendUrl + '/api/user/register',
+          backendUrl + "/api/user/register",
           { name, email, password }
         );
 
@@ -26,11 +26,11 @@ const Login = () => {
         }
 
         setToken(res.data.token);
-        localStorage.setItem('token', res.data.token);
-        toast.success('Account created successfully');
+        localStorage.setItem("token", res.data.token);
+        toast.success("Account created successfully");
       } else {
         const res = await axios.post(
-          backendUrl + '/api/user/login',
+          backendUrl + "/api/user/login",
           { email, password }
         );
 
@@ -39,16 +39,16 @@ const Login = () => {
         }
 
         setToken(res.data.token);
-        localStorage.setItem('token', res.data.token);
-        toast.success('Logged in successfully');
+        localStorage.setItem("token", res.data.token);
+        toast.success("Logged in successfully");
       }
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message);
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
   useEffect(() => {
-    if (token) navigate('/');
+    if (token) navigate("/");
   }, [token]);
 
   return (
@@ -57,10 +57,10 @@ const Login = () => {
       className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-16 gap-4 text-gray-800"
     >
       <h2 className="text-3xl font-semibold">
-        {mode === 'login' ? 'Login' : 'Create Account'}
+        {mode === "login" ? "Login" : "Create Account"}
       </h2>
 
-      {mode === 'register' && (
+      {mode === "register" && (
         <input
           type="text"
           placeholder="Name"
@@ -92,22 +92,22 @@ const Login = () => {
       <div className="w-full flex justify-between text-sm">
         <p
           className="cursor-pointer underline"
-          onClick={() => navigate('/forgot-password')}
+          onClick={() => navigate("/forgot-password")}
         >
           Forgot password?
         </p>
 
-        {mode === 'login' ? (
+        {mode === "login" ? (
           <p
             className="cursor-pointer underline"
-            onClick={() => setMode('register')}
+            onClick={() => setMode("register")}
           >
             Create account
           </p>
         ) : (
           <p
             className="cursor-pointer underline"
-            onClick={() => setMode('login')}
+            onClick={() => setMode("login")}
           >
             Login instead
           </p>
@@ -115,7 +115,7 @@ const Login = () => {
       </div>
 
       <button className="bg-black text-white px-8 py-2 mt-4">
-        {mode === 'login' ? 'Login' : 'Register'}
+        {mode === "login" ? "Login" : "Register"}
       </button>
     </form>
   );
