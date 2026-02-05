@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    name: {
+      type: String,
+      required: true,
+    },
 
     email: {
       type: String,
@@ -26,9 +29,14 @@ const userSchema = new mongoose.Schema(
       default: {},
     },
 
-    // 🔐 PASSWORD RESET
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
+    // 🔑 REQUIRED FOR FORGOT PASSWORD
+    resetPasswordToken: {
+      type: String,
+    },
+
+    resetPasswordExpire: {
+      type: Date,
+    },
   },
   { minimize: false }
 );
