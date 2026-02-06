@@ -1,50 +1,77 @@
 import React, { useContext, useEffect, useState } from 'react'
 import { ShopContext } from '../context/ShopContext'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const ProductItem = ({ id, image, name, price }) => {
   const { currency } = useContext(ShopContext)
+  const navigate = useNavigate()
 
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [hovered, setHovered] = useState(false)
+  const [isPreviewing, setIsPreviewing] = useState(false)
 
+  /* ================= DESKTOP HOVER ================= */
   useEffect(() => {
-    if (!hovered || image.length <= 1) return
+    if (!isPreviewing || image.length <= 1) return
 
     const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % image.length)
-    }, 700) // smooth & fast
+      setCurrentImageIndex(prev => (prev + 1) % image.length)
+    }, 700)
 
     return () => clearInterval(interval)
-  }, [hovered, image])
+  }, [isPreviewing, image])
 
+  /* ================= EVENTS ================= */
   const handleMouseEnter = () => {
-    setHovered(true)
+    if (window.innerWidth > 768) {
+      setIsPreviewing(true)
+    }
   }
 
   const handleMouseLeave = () => {
-    setHovered(false)
+    setIsPreviewing(false)
     setCurrentImageIndex(0)
   }
 
+  const handleClick = () => {
+    // Mobile logic
+    if (window.innerWidth <= 768 && image.length > 1 && !isPreviewing) {
+      setIsPreviewing(true)
+
+      const interval = setInterval(() => {
+        setCurrentImageIndex(prev => (prev + 1) % image.length)
+      }, 700)
+
+      setTimeout(() => {
+        clearInterval(interval)
+        setIsPreviewing(false)
+        setCurrentImageIndex(0)
+      }, 2000)
+
+      return
+    }
+
+    // Second tap or desktop → navigate
+    navigate(`/product/${id}`)
+  }
+
   return (
-    <Link
-      to={`/product/${id}`}
+    <div
       className="text-gray-700 cursor-pointer"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       <div className="overflow-hidden">
         <img
           src={image[currentImageIndex]}
           alt={name}
-          className="transition-all duration-500 ease-in-out hover:scale-110"
+          className="transition-all duration-500 ease-in-out"
         />
       </div>
 
       <p className="pt-3 pb-1 text-sm">{name}</p>
       <p className="text-sm font-medium">{currency}{price}</p>
-    </Link>
+    </div>
   )
 }
 
