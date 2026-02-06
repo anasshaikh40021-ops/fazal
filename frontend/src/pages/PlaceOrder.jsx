@@ -32,21 +32,17 @@ const PlaceOrder = () => {
     phone: ''
   });
 
-  /* 🔒 PROTECT PAGE IF CART IS EMPTY */
+  /* 🔒 Protect page if cart empty */
   useEffect(() => {
     let hasItems = false;
 
-    for (const items in cartItems) {
-      for (const item in cartItems[items]) {
-        if (cartItems[items][item] > 0) {
-          hasItems = true;
-        }
+    for (const p in cartItems) {
+      for (const s in cartItems[p]) {
+        if (cartItems[p][s] > 0) hasItems = true;
       }
     }
 
-    if (!hasItems) {
-      navigate('/cart');
-    }
+    if (!hasItems) navigate('/cart');
   }, []);
 
   const onChangeHandler = (e) => {
@@ -56,15 +52,15 @@ const PlaceOrder = () => {
   const buildOrderItems = () => {
     let orderItems = [];
 
-    for (const items in cartItems) {
-      for (const item in cartItems[items]) {
-        if (cartItems[items][item] > 0) {
-          const product = products.find(p => p._id === items);
+    for (const p in cartItems) {
+      for (const s in cartItems[p]) {
+        if (cartItems[p][s] > 0) {
+          const product = products.find(pr => pr._id === p);
           if (product) {
             orderItems.push({
               ...product,
-              size: item,
-              quantity: cartItems[items][item]
+              size: s,
+              quantity: cartItems[p][s]
             });
           }
         }
@@ -81,6 +77,7 @@ const PlaceOrder = () => {
 
       if (orderItems.length === 0) {
         toast.error("Your cart is empty");
+        navigate('/cart');
         return;
       }
 
@@ -99,6 +96,7 @@ const PlaceOrder = () => {
         );
 
         if (res.data.success) {
+          toast.success("Order placed successfully");
           setCartItems({});
           navigate('/orders');
         } else {
@@ -106,8 +104,9 @@ const PlaceOrder = () => {
         }
       }
 
-      /* ============ RAZORPAY (UPI / PHONEPE) ============ */
+      /* ============ RAZORPAY ============ */
       if (method === 'razorpay') {
+
         const { data } = await axios.post(
           backendUrl + '/api/order/razorpay',
           orderData,
@@ -116,6 +115,7 @@ const PlaceOrder = () => {
 
         if (!data.success) {
           toast.error("Payment initiation failed");
+          navigate('/cart');
           return;
         }
 
@@ -126,16 +126,42 @@ const PlaceOrder = () => {
           name: "Fazal Shop",
           description: "Order Payment",
           order_id: data.orderId,
-          handler: async (response) => {
-            await axios.post(
-              backendUrl + '/api/order/verify-razorpay',
-              response,
-              { headers: { token } }
-            );
 
-            setCartItems({});
-            navigate('/orders');
+          handler: async (response) => {
+            try {
+              const verifyRes = await axios.post(
+                backendUrl + '/api/order/verify-razorpay',
+                response,
+                { headers: { token } }
+              );
+
+              if (verifyRes.data.success) {
+                toast.success("Razorpay payment successful ✅"); // ✅ ADDED
+                setCartItems({});
+                navigate('/orders');
+              } else {
+                toast.error("Payment verification failed");
+                navigate('/cart');
+              }
+
+            } catch (err) {
+              toast.error("Payment failed");
+              navigate('/cart');
+            }
           },
+
+          modal: {
+            ondismiss: function () {
+              toast.error("Payment cancelled");
+              navigate('/cart');
+            }
+          },
+
+          prefill: {
+            email: formData.email,
+            contact: formData.phone
+          },
+
           theme: { color: "#000000" }
         };
 
@@ -146,6 +172,7 @@ const PlaceOrder = () => {
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Order failed");
+      navigate('/cart');
     }
   };
 
@@ -193,23 +220,15 @@ const PlaceOrder = () => {
           <Title text1={'PAYMENT'} text2={'METHOD'} />
 
           <div className='flex gap-3 flex-col'>
-
-            <div
-              onClick={() => setMethod('razorpay')}
-              className='flex items-center gap-3 border p-3 cursor-pointer'
-            >
+            <div onClick={() => setMethod('razorpay')} className='flex items-center gap-3 border p-3 cursor-pointer'>
               <span className={`w-4 h-4 border rounded-full ${method === 'razorpay' ? 'bg-green-500' : ''}`}></span>
               <p className='text-sm'>UPI / PhonePe / GPay</p>
             </div>
 
-            <div
-              onClick={() => setMethod('cod')}
-              className='flex items-center gap-3 border p-3 cursor-pointer'
-            >
+            <div onClick={() => setMethod('cod')} className='flex items-center gap-3 border p-3 cursor-pointer'>
               <span className={`w-4 h-4 border rounded-full ${method === 'cod' ? 'bg-green-500' : ''}`}></span>
               <p className='text-sm'>Cash on Delivery</p>
             </div>
-
           </div>
         </div>
 
@@ -218,7 +237,6 @@ const PlaceOrder = () => {
             PLACE ORDER
           </button>
         </div>
-
       </div>
     </form>
   );
