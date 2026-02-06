@@ -1,168 +1,145 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { ShopContext } from '../context/ShopContext'
-import { assets } from '../assets/assets'
-import RelatedProducts from '../components/RelatedProducts'
-import axios from 'axios'
-import { toast } from 'react-toastify'
+import React, { useContext, useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { ShopContext } from "../context/ShopContext";
+import { assets } from "../assets/assets";
+import RelatedProducts from "../components/RelatedProducts";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const Product = () => {
-  const { productId } = useParams()
-  const { products, currency, addToCart, backendUrl, token } = useContext(ShopContext)
+  const { productId } = useParams();
+  const { products, currency, addToCart, backendUrl, token } =
+    useContext(ShopContext);
 
-  const [productData, setProductData] = useState(null)
-  const [image, setImage] = useState('')
-  const [size, setSize] = useState('')
+  const [productData, setProductData] = useState(null);
+  const [image, setImage] = useState("");
+  const [size, setSize] = useState("");
 
-  // ⭐ Reviews State
-  const [reviews, setReviews] = useState([])
-  const [rating, setRating] = useState(0)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [comment, setComment] = useState('')
+  /* ---------------- REVIEWS ---------------- */
+  const [reviews, setReviews] = useState([]);
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
 
-  // ------------------------
-  // Fetch Product
-  // ------------------------
+  /* ---------------- FETCH PRODUCT ---------------- */
   useEffect(() => {
-    const foundProduct = products.find((item) => item._id === productId)
-    if (foundProduct) {
-      setProductData(foundProduct)
-      setImage(foundProduct.image[0])
-      setSize('')
+    const found = products.find((p) => p._id === productId);
+    if (found) {
+      setProductData(found);
+      setImage(found.image[0]);
+      setSize("");
     }
-  }, [productId, products])
+  }, [productId, products]);
 
-  // ------------------------
-  // Fetch Reviews
-  // ------------------------
+  /* ---------------- FETCH REVIEWS ---------------- */
   const fetchReviews = async () => {
     try {
-      const res = await axios.get(`${backendUrl}/api/reviews/${productId}`)
-      setReviews(res.data || [])
-    } catch (error) {
-      console.log('Fetch reviews error:', error)
-      setReviews([])
+      const { data } = await axios.get(
+        `${backendUrl}/api/review/${productId}`
+      );
+      setReviews(data);
+    } catch (err) {
+      console.log(err);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchReviews()
-    window.scrollTo(0, 0)
-  }, [productId])
+    fetchReviews();
+    window.scrollTo(0, 0);
+  }, [productId]);
 
-  // ------------------------
-  // Submit Review
-  // ------------------------
+  /* ---------------- SUBMIT REVIEW ---------------- */
   const submitReview = async () => {
     if (!token) {
-      toast.error('Login to submit review')
-      return
+      toast.error("Login to submit review");
+      return;
     }
 
     if (!rating || !comment.trim()) {
-      toast.error('Please add rating and comment')
-      return
+      toast.error("Rating & comment required");
+      return;
     }
 
     try {
       await axios.post(
-        `${backendUrl}/api/reviews/${productId}`,
+        `${backendUrl}/api/review/${productId}`,
         { rating, comment },
         { headers: { token } }
-      )
+      );
 
-      toast.success('Review submitted')
-      setRating(0)
-      setHoverRating(0)
-      setComment('')
-      fetchReviews()
-    } catch (error) {
-      console.log('Submit review error:', error)
-      toast.error(error.response?.data?.message || 'Error submitting review')
+      toast.success("Review added");
+      setRating(0);
+      setHoverRating(0);
+      setComment("");
+      fetchReviews();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Review failed");
     }
-  }
+  };
 
-  // ------------------------
-  // Average Rating
-  // ------------------------
+  /* ---------------- AVERAGE RATING ---------------- */
   const averageRating =
     reviews.length > 0
       ? (
-          reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) /
-          reviews.length
+          reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         ).toFixed(1)
-      : 0
+      : 0;
 
-  if (!productData) return <div className="opacity-0" />
+  if (!productData) return null;
 
   return (
-    <div className="border-t-2 pt-10 transition-opacity ease-in duration-500 opacity-100">
+    <div className="border-t-2 pt-10">
 
-      {/* TOP SECTION */}
+      {/* PRODUCT SECTION */}
       <div className="flex gap-12 flex-col sm:flex-row">
-
-        {/* IMAGES */}
-        <div className="flex-1 flex flex-col-reverse gap-3 sm:flex-row">
-          <div className="flex sm:flex-col overflow-x-auto sm:overflow-y-scroll sm:w-[18.7%] w-full">
-            {productData.image.map((item, index) => (
+        <div className="flex-1 flex flex-col-reverse sm:flex-row gap-3">
+          <div className="flex sm:flex-col overflow-x-auto sm:w-[18%]">
+            {productData.image.map((img, i) => (
               <img
-                onClick={() => setImage(item)}
-                src={item}
-                key={index}
-                className="w-[24%] sm:w-full sm:mb-3 cursor-pointer"
+                key={i}
+                src={img}
+                onClick={() => setImage(img)}
+                className="w-[24%] sm:w-full cursor-pointer"
                 alt=""
               />
             ))}
           </div>
 
-          <div className="w-full sm:w-[80%]">
-            <img className="w-[90%]" src={image} alt="" />
+          <div className="sm:w-[80%]">
+            <img src={image} className="w-[90%]" alt="" />
           </div>
         </div>
 
-        {/* PRODUCT INFO */}
         <div className="flex-1">
-          <h1 className="font-medium text-2xl mt-2">{productData.name}</h1>
+          <h1 className="text-2xl font-medium">{productData.name}</h1>
 
-          {/* ⭐ AVERAGE STARS */}
           <div className="flex items-center gap-1 mt-2">
-            {[1,2,3,4,5].map((i) => (
+            {[1,2,3,4,5].map(i => (
               <img
                 key={i}
-                src={
-                  i <= Math.round(averageRating)
-                    ? assets.star_icon
-                    : assets.star_dull_icon
-                }
+                src={i <= Math.round(averageRating) ? assets.star_icon : assets.star_dull_icon}
                 className="w-3"
-                alt=""
               />
             ))}
-            <p className="pl-2 text-sm">({reviews.length})</p>
-            <p className="pl-1 text-sm text-gray-500">{averageRating}</p>
+            <span className="text-sm ml-2">({reviews.length}) {averageRating}</span>
           </div>
 
-          <p className="mt-5 text-3xl font-medium">
-            {currency}{productData.price}
-          </p>
+          <p className="mt-4 text-3xl">{currency}{productData.price}</p>
+          <p className="mt-4 text-gray-500">{productData.description}</p>
 
-          <p className="mt-5 text-gray-500">
-            {productData.description}
-          </p>
-
-          {/* SIZE */}
-          <div className="flex flex-col gap-4 my-8">
+          <div className="mt-6">
             <p>Select Size</p>
-            <div className="flex gap-2">
-              {productData.sizes.map((item, index) => (
+            <div className="flex gap-2 mt-2">
+              {productData.sizes.map((s, i) => (
                 <button
-                  key={index}
-                  onClick={() => setSize(item)}
-                  className={`border py-2 px-4 bg-gray-100 ${
-                    item === size ? 'border-orange-500' : ''
+                  key={i}
+                  onClick={() => setSize(s)}
+                  className={`border px-4 py-2 ${
+                    size === s ? "border-orange-500" : ""
                   }`}
                 >
-                  {item}
+                  {s}
                 </button>
               ))}
             </div>
@@ -170,90 +147,76 @@ const Product = () => {
 
           <button
             onClick={() => {
-              if (!size) {
-                toast.error('Please select a size')
-                return
-              }
-              addToCart(productData._id, size)
+              if (!size) return toast.error("Select size");
+              addToCart(productData._id, size);
             }}
-            className="bg-black text-white px-8 py-3 text-sm active:bg-gray-700"
+            className="bg-black text-white px-8 py-3 mt-6"
           >
             ADD TO CART
           </button>
         </div>
       </div>
 
-      {/* REVIEWS SECTION */}
-      <div className="mt-20">
+      {/* ADD REVIEW */}
+      <div className="border px-6 py-6 mt-16">
+        <h3 className="font-medium mb-3">Add a Review</h3>
 
-        {/* ADD REVIEW */}
-        <div className="border px-6 py-6 mt-6">
-          <h3 className="font-medium mb-3">Add a Review</h3>
+        <div className="flex gap-2 mb-3">
+          {[1,2,3,4,5].map(i => (
+            <img
+              key={i}
+              onMouseEnter={() => setHoverRating(i)}
+              onMouseLeave={() => setHoverRating(0)}
+              onClick={() => setRating(i)}
+              src={i <= (hoverRating || rating) ? assets.star_icon : assets.star_dull_icon}
+              className="w-6 cursor-pointer"
+            />
+          ))}
+        </div>
 
-          {/* ⭐ HOVER STARS */}
-          <div className="flex gap-2 mb-3">
-            {[1,2,3,4,5].map((i) => (
-              <img
-                key={i}
-                onMouseEnter={() => setHoverRating(i)}
-                onMouseLeave={() => setHoverRating(0)}
-                onClick={() => setRating(i)}
-                src={
-                  i <= (hoverRating || rating)
-                    ? assets.star_icon
-                    : assets.star_dull_icon
-                }
-                className="w-6 cursor-pointer transition-transform hover:scale-110"
-                alt=""
-              />
-            ))}
+        <textarea
+          className="w-full border p-2"
+          placeholder="Write your review..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+
+        <button
+          onClick={submitReview}
+          className="bg-black text-white px-6 py-2 mt-3"
+        >
+          Submit Review
+        </button>
+      </div>
+
+      {/* REVIEWS LIST */}
+      <div className="border px-6 py-6 mt-6">
+        <h3 className="font-medium mb-3">Customer Reviews</h3>
+
+        {(showAllReviews ? reviews : reviews.slice(0, 3)).map((rev) => (
+          <div key={rev._id} className="border-b py-4">
+            <div className="flex gap-1">
+              {[1,2,3,4,5].map(i => (
+                <img
+                  key={i}
+                  src={i <= rev.rating ? assets.star_icon : assets.star_dull_icon}
+                  className="w-3"
+                />
+              ))}
+            </div>
+            <p className="text-sm mt-1">{rev.comment}</p>
+            <p className="text-xs text-gray-500">— {rev.user?.name}</p>
           </div>
+        ))}
 
-          <textarea
-            className="w-full border p-2 text-sm"
-            placeholder="Write your review..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-
+        {reviews.length > 3 && (
           <button
-            onClick={submitReview}
-            className="bg-black text-white px-6 py-2 text-sm mt-3"
+            onClick={() => setShowAllReviews(!showAllReviews)}
+            className="text-blue-600 text-sm mt-3"
           >
-            Submit Review
+            {showAllReviews ? "Show Less" : "Read More"}
           </button>
-        </div>
-
-        {/* SHOW REVIEWS */}
-        <div className="border px-6 py-6 mt-6">
-          <h3 className="font-medium mb-3">Customer Reviews</h3>
-
-          {reviews.length === 0 ? (
-            <p className="text-gray-500 text-sm">No reviews yet.</p>
-          ) : (
-            reviews.map((rev) => (
-              <div key={rev._id} className="border-b py-4">
-                <div className="flex gap-1">
-                  {[1,2,3,4,5].map((i) => (
-                    <img
-                      key={i}
-                      src={
-                        i <= rev.rating
-                          ? assets.star_icon
-                          : assets.star_dull_icon
-                      }
-                      className="w-3"
-                      alt=""
-                    />
-                  ))}
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  {rev.comment}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
+        )}
       </div>
 
       <RelatedProducts
@@ -261,7 +224,7 @@ const Product = () => {
         subCategory={productData.subCategory}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Product
+export default Product;
