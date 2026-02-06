@@ -1,10 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { ShopContext } from "../context/ShopContext";
 import axios from "axios";
 import { toast } from "react-toastify";
 
 const Login = () => {
-  const { token, setToken, navigate, backendUrl } = useContext(ShopContext);
+  const { setToken, setRole, navigate, backendUrl } = useContext(ShopContext);
 
   const [mode, setMode] = useState("login"); // login | register
   const [name, setName] = useState("");
@@ -15,6 +15,7 @@ const Login = () => {
     e.preventDefault();
 
     try {
+      /* ================= REGISTER ================= */
       if (mode === "register") {
         const res = await axios.post(
           backendUrl + "/api/user/register",
@@ -26,9 +27,17 @@ const Login = () => {
         }
 
         setToken(res.data.token);
+        setRole(res.data.role);
+
         localStorage.setItem("token", res.data.token);
+        localStorage.setItem("role", res.data.role);
+
         toast.success("Account created successfully");
-      } else {
+        navigate("/");
+      }
+
+      /* ================= LOGIN ================= */
+      else {
         const res = await axios.post(
           backendUrl + "/api/user/login",
           { email, password }
@@ -39,17 +48,24 @@ const Login = () => {
         }
 
         setToken(res.data.token);
+        setRole(res.data.role);
+
         localStorage.setItem("token", res.data.token);
+        localStorage.setItem("role", res.data.role);
+
         toast.success("Logged in successfully");
+
+        // 🔑 ROLE BASED REDIRECT
+        if (res.data.role === "admin") {
+          window.location.href = import.meta.env.VITE_ADMIN_URL;
+        } else {
+          navigate("/");
+        }
       }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message);
     }
   };
-
-  useEffect(() => {
-    if (token) navigate("/");
-  }, [token]);
 
   return (
     <form

@@ -13,7 +13,7 @@ const ShopContextProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState("");
-  const [role, setRole] = useState(""); // ✅ ADDED
+  const [role, setRole] = useState("");
 
   const navigate = useNavigate();
 
@@ -39,8 +39,12 @@ const ShopContextProvider = ({ children }) => {
 
       if (res.data.success) {
         setCartItems(res.data.cartData);
+        toast.success("Product added to cart successfully 🛒");
+      } else {
+        toast.error(res.data.message || "Failed to add product");
       }
     } catch (error) {
+      toast.error("Something went wrong");
       console.log(error);
     }
   };
@@ -125,7 +129,7 @@ const ShopContextProvider = ({ children }) => {
 
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
-    const savedRole = localStorage.getItem("role"); // ✅ ADDED
+    const savedRole = localStorage.getItem("role");
 
     if (savedToken) setToken(savedToken);
     if (savedRole) setRole(savedRole);
@@ -150,8 +154,8 @@ const ShopContextProvider = ({ children }) => {
         navigate,
         token,
         setToken,
-        role,       // ✅ ADDED
-        setRole,    // ✅ ADDED
+        role,
+        setRole,
         backendUrl,
       }}
     >
