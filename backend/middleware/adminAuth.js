@@ -9,8 +9,7 @@ const adminAuth = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    console.log("TOKEN:", token);
-console.log("DECODED:", decoded);
+    
 
 
     if (decoded.role !== "admin") {
