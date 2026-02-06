@@ -3,6 +3,8 @@ import { ShopContext } from '../context/ShopContext'
 import Title from '../components/Title';
 import { assets } from '../assets/assets';
 import CartTotal from '../components/CartTotal';
+import { toast } from 'react-toastify';
+
 
 const Cart = () => {
 
@@ -69,7 +71,19 @@ useEffect(()=>{
         <div className='w-full sm:w-[450px]'>
           <CartTotal/> 
           <div className='w-full text-end '>
-            <button onClick={()=>navigate('/place-order')} className='bg-black text-white text-sm my-8 px-8 py-3 cursor-pointer'>PROCEED TO CHECKOUT</button>
+            <button
+  onClick={() => {
+    if (cartData.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+    navigate('/place-order');
+  }}
+  className='bg-black text-white text-sm my-8 px-8 py-3 cursor-pointer'
+>
+  PROCEED TO CHECKOUT
+</button>
+
 
           </div>
         </div>
