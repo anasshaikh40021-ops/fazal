@@ -28,9 +28,9 @@ const placeOrder = async (req, res) => {
       items,
       address,
       amount,
-      paymentMethod: "COD",
+      paymentMethod: "Cash on Delivery",
       payment: false,
-      status: "Placed",
+      status: "Order Placed",
       date: Date.now(),
     });
 
@@ -43,14 +43,12 @@ const placeOrder = async (req, res) => {
     if (user?.email) {
       await sendEmail({
         email: user.email,
-        subject: "Order Confirmed - Fazal Store",
-        message: `
-          <h2>Thank you for your order 🎉</h2>
-          <p>Your order has been placed successfully.</p>
-          <p><strong>Payment Method:</strong> Cash on Delivery</p>
-          <p><strong>Total Amount:</strong> ₹${amount}</p>
-          <p>We’ll notify you once your order is shipped.</p>
-        `,
+        subject: "Order Placed Successfully - Fazal Store",
+        title: "Thank you for your order 🎉",
+        message: "Your order has been placed successfully.",
+        order: newOrder,
+        paymentMethod: "Cash on Delivery",
+        paymentStatus: "Payment Pending",
       });
     }
 
@@ -83,10 +81,10 @@ const placeOrderRazorpay = async (req, res) => {
       items,
       address,
       amount,
-      paymentMethod: "RAZORPAY",
+      paymentMethod: "Razorpay",
       payment: false,
       razorpayOrderId: razorpayOrder.id,
-      status: "Pending Payment",
+      status: "Payment Pending",
       date: Date.now(),
     });
 
@@ -132,7 +130,7 @@ const verifyRazorpayPayment = async (req, res) => {
       { razorpayOrderId: razorpay_order_id },
       {
         payment: true,
-        status: "Placed",
+        status: "Order Placed",
         razorpayPaymentId: razorpay_payment_id,
       },
       { new: true }
@@ -140,20 +138,18 @@ const verifyRazorpayPayment = async (req, res) => {
 
     await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
 
-    /* ===== SEND EMAIL (RAZORPAY) ===== */
+    /* ===== SEND EMAIL (RAZORPAY SUCCESS) ===== */
     const user = await userModel.findById(req.user.id);
 
     if (user?.email) {
       await sendEmail({
         email: user.email,
         subject: "Payment Successful - Fazal Store",
-        message: `
-          <h2>Payment Successful ✅</h2>
-          <p>Your order has been placed successfully.</p>
-          <p><strong>Payment Method:</strong> Razorpay</p>
-          <p><strong>Amount Paid:</strong> ₹${order.amount}</p>
-          <p>We’ll notify you when your order is shipped.</p>
-        `,
+        title: "Payment Successful ✅",
+        message: "Your payment has been received and order is confirmed.",
+        order,
+        paymentMethod: "Razorpay",
+        paymentStatus: "Paid",
       });
     }
 
