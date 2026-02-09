@@ -5,33 +5,31 @@ import validator from "validator";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 
+/* =====================
+   TOKEN
+===================== */
 const createToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 };
 
-// =====================
-// USER / ADMIN LOGIN
-// =====================
+/* =====================
+   LOGIN
+===================== */
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User does not exist" });
-    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.json({ success: false, message: "Invalid credentials" });
-    }
 
-    const token = createToken({
-      id: user._id,
-      role: user.role,
-    });
+    const token = createToken({ id: user._id, role: user.role });
 
     res.json({
       success: true,
@@ -39,50 +37,38 @@ const loginUser = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// =====================
-// USER REGISTER
-// =====================
+/* =====================
+   REGISTER
+===================== */
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists) {
+    if (await User.findOne({ email }))
       return res.json({ success: false, message: "User already exists" });
-    }
 
-    if (!validator.isEmail(email)) {
-      return res.json({ success: false, message: "Please enter a valid email" });
-    }
+    if (!validator.isEmail(email))
+      return res.json({ success: false, message: "Invalid email" });
 
-    if (password.length < 8) {
+    if (password.length < 8)
       return res.json({
         success: false,
         message: "Password must be at least 8 characters",
       });
-    }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
-      role: "user",
     });
 
-    const user = await newUser.save();
-
-    const token = createToken({
-      id: user._id,
-      role: user.role,
-    });
+    const token = createToken({ id: user._id, role: user.role });
 
     res.json({
       success: true,
@@ -90,22 +76,62 @@ const registerUser = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// =====================
-// FORGOT PASSWORD
-// =====================
+/* =====================
+   GET PROFILE ✅ (IMPORTANT)
+===================== */
+const getUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user)
+      return res.json({ success: false, message: "User not found" });
+
+    res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+/* =====================
+   UPDATE PROFILE ✅
+===================== */
+const updateUserProfile = async (req, res) => {
+  try {
+    const updateData = {};
+
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.file) updateData.profileImage = req.file.path;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      updateData,
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+/* =====================
+   FORGOT PASSWORD
+===================== */
 const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user)
       return res.json({ success: false, message: "User not found" });
-    }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
 
@@ -114,8 +140,7 @@ const forgotPassword = async (req, res) => {
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000; // 15 minutes
-
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
     await user.save();
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
@@ -129,27 +154,20 @@ const forgotPassword = async (req, res) => {
     });
 
     await transporter.sendMail({
-      from: `"Fazal Store" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Password Reset",
-      html: `
-        <p>You requested a password reset.</p>
-        <p>Click the link below to reset your password:</p>
-        <a href="${resetUrl}">${resetUrl}</a>
-        <p>This link will expire in 15 minutes.</p>
-      `,
+      html: `<a href="${resetUrl}">${resetUrl}</a>`,
     });
 
-    res.json({ success: true, message: "Reset link sent to email" });
+    res.json({ success: true, message: "Reset link sent" });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
-// =====================
-// RESET PASSWORD
-// =====================
+/* =====================
+   RESET PASSWORD
+===================== */
 const resetPassword = async (req, res) => {
   try {
     const resetToken = crypto
@@ -162,24 +180,16 @@ const resetPassword = async (req, res) => {
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    if (!user) {
-      return res.json({
-        success: false,
-        message: "Invalid or expired token",
-      });
-    }
+    if (!user)
+      return res.json({ success: false, message: "Token expired" });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(req.body.password, salt);
-
+    user.password = await bcrypt.hash(req.body.password, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
-
     await user.save();
 
-    res.json({ success: true, message: "Password reset successful" });
+    res.json({ success: true });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -187,6 +197,8 @@ const resetPassword = async (req, res) => {
 export {
   loginUser,
   registerUser,
+  getUserProfile,
+  updateUserProfile,
   forgotPassword,
   resetPassword,
 };

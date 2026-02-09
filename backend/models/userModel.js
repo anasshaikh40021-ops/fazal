@@ -29,7 +29,25 @@ const userSchema = new mongoose.Schema(
       default: {},
     },
 
-    // 🔑 REQUIRED FOR FORGOT PASSWORD
+    // 👤 PROFILE IMAGE
+    profileImage: {
+      type: String,
+      default: "",
+    },
+
+    // 🏠 ADDRESSES
+    addresses: [
+      {
+        name: String,
+        phone: String,
+        address: String,
+        city: String,
+        state: String,
+        pincode: String,
+      },
+    ],
+
+    // 🔑 FORGOT PASSWORD
     resetPasswordToken: {
       type: String,
     },
@@ -42,5 +60,4 @@ const userSchema = new mongoose.Schema(
 );
 
 const User = mongoose.models.User || mongoose.model("User", userSchema);
-
 export default User;
