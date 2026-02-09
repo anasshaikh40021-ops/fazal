@@ -21,21 +21,20 @@ userRouter.post("/forgot-password", forgotPassword);
 userRouter.post("/reset-password/:token", resetPassword);
 
 /* =====================
-   PROFILE ROUTES
+   GET PROFILE
 ===================== */
-
-// Get profile
 userRouter.get("/profile", authUser, async (req, res) => {
   try {
     const user = await userModel.findById(req.user.id).select("-password");
-
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false });
   }
 });
 
-// Update profile (name + image)
+/* =====================
+   UPDATE PROFILE (NAME / IMAGE / REMOVE IMAGE)
+===================== */
 userRouter.put(
   "/update-profile",
   authUser,
@@ -44,31 +43,33 @@ userRouter.put(
     try {
       const updateData = {};
 
-      if (req.body.name) updateData.name = req.body.name;
-      if (req.file) updateData.profileImage = req.file.path;
+      // update name
+      if (req.body.name) {
+        updateData.name = req.body.name;
+      }
 
-      await userModel.findByIdAndUpdate(req.user.id, updateData);
+      // 🔥 REMOVE PROFILE IMAGE
+      if (req.body.removeImage === "true") {
+        updateData.profileImage = "";
+      }
 
-      res.json({ success: true });
+      // upload new image
+      if (req.file) {
+        updateData.profileImage = req.file.path;
+      }
+
+      const user = await userModel.findByIdAndUpdate(
+        req.user.id,
+        updateData,
+        { new: true }
+      ).select("-password");
+
+      res.json({ success: true, user });
     } catch (error) {
+      console.error(error);
       res.status(500).json({ success: false });
     }
   }
 );
-
-/* =====================
-   REMOVE PROFILE PHOTO ✅
-===================== */
-userRouter.delete("/remove-profile-photo", authUser, async (req, res) => {
-  try {
-    await userModel.findByIdAndUpdate(req.user.id, {
-      $unset: { profileImage: "" },
-    });
-
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false });
-  }
-});
 
 export default userRouter;

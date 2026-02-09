@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import validator from "validator";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import fs from "fs";
 
 /* =====================
    TOKEN
@@ -22,12 +23,14 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
+    if (!user) {
       return res.json({ success: false, message: "User does not exist" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
+    if (!isMatch) {
       return res.json({ success: false, message: "Invalid credentials" });
+    }
 
     const token = createToken({ id: user._id, role: user.role });
 
@@ -48,17 +51,20 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (await User.findOne({ email }))
+    if (await User.findOne({ email })) {
       return res.json({ success: false, message: "User already exists" });
+    }
 
-    if (!validator.isEmail(email))
+    if (!validator.isEmail(email)) {
       return res.json({ success: false, message: "Invalid email" });
+    }
 
-    if (password.length < 8)
+    if (password.length < 8) {
       return res.json({
         success: false,
         message: "Password must be at least 8 characters",
       });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -81,14 +87,15 @@ const registerUser = async (req, res) => {
 };
 
 /* =====================
-   GET PROFILE ✅ (IMPORTANT)
+   GET PROFILE
 ===================== */
 const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
 
-    if (!user)
+    if (!user) {
       return res.json({ success: false, message: "User not found" });
+    }
 
     res.json({
       success: true,
@@ -100,26 +107,51 @@ const getUserProfile = async (req, res) => {
 };
 
 /* =====================
-   UPDATE PROFILE ✅
+   UPDATE PROFILE ✅ FIXED PROPERLY
 ===================== */
 const updateUserProfile = async (req, res) => {
   try {
-    const updateData = {};
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
 
-    if (req.body.name) updateData.name = req.body.name;
-    if (req.file) updateData.profileImage = req.file.path;
+    // Update name
+    if (req.body.name) {
+      user.name = req.body.name;
+    }
 
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true }
-    ).select("-password");
+    /*
+      IMPORTANT:
+      removeImage MUST override everything
+    */
+    if (req.body.removeImage === "true") {
+      // delete old file (optional but correct)
+      if (user.profileImage && fs.existsSync(user.profileImage)) {
+        fs.unlinkSync(user.profileImage);
+      }
+      user.profileImage = "";
+    }
+
+    // Upload new image
+    if (req.file) {
+      // delete old image if exists
+      if (user.profileImage && fs.existsSync(user.profileImage)) {
+        fs.unlinkSync(user.profileImage);
+      }
+      user.profileImage = req.file.path;
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(user._id).select("-password");
 
     res.json({
       success: true,
-      user,
+      user: updatedUser,
     });
   } catch (error) {
+    console.error("UPDATE PROFILE ERROR:", error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -130,8 +162,9 @@ const updateUserProfile = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
-    if (!user)
+    if (!user) {
       return res.json({ success: false, message: "User not found" });
+    }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
 
@@ -180,8 +213,9 @@ const resetPassword = async (req, res) => {
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    if (!user)
+    if (!user) {
       return res.json({ success: false, message: "Token expired" });
+    }
 
     user.password = await bcrypt.hash(req.body.password, 10);
     user.resetPasswordToken = undefined;
