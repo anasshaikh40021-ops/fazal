@@ -19,10 +19,17 @@ const Profile = () => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  /* ---------------- AUTH GUARD ---------------- */
+  /* ---------------- AUTH GUARD (FIXED) ---------------- */
   useEffect(() => {
-    if (!token) navigate("/login");
+    const savedToken = localStorage.getItem("token");
+
+    if (!token && !savedToken) {
+      navigate("/login");
+    } else {
+      setAuthChecked(true);
+    }
   }, [token, navigate]);
 
   /* ---------------- LOAD USER ---------------- */
@@ -45,29 +52,35 @@ const Profile = () => {
     return () => URL.revokeObjectURL(url);
   }, [image]);
 
+  /* ---------------- REMOVE PHOTO (FIXED) ---------------- */
   /* ---------------- REMOVE PHOTO ---------------- */
-  const removePhoto = async () => {
-    try {
-      const res = await axios.put(
-        `${backendUrl}/api/user/update-profile`,
-        { removeImage: true },
-        { headers: { token } }
-      );
+const removePhoto = async () => {
+  try {
+    const formData = new FormData();
+    formData.append("removeImage", "true");
 
-      if (res.data.success) {
-        const profileRes = await axios.get(
-          `${backendUrl}/api/user/profile`,
-          { headers: { token } }
-        );
-
-        setUser(profileRes.data.user);
-        setPreview("");
-        toast.success("Profile photo removed");
+    const res = await axios.put(
+      `${backendUrl}/api/user/update-profile`,
+      formData,
+      {
+        headers: {
+          token,
+          "Content-Type": "multipart/form-data",
+        },
       }
-    } catch (err) {
-      toast.error("Failed to remove photo");
+    );
+
+    if (res.data.success) {
+      setUser(res.data.user);
+      setPreview("");
+      toast.success("Profile photo removed");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to remove photo");
+  }
+};
+
 
   /* ---------------- UPDATE PROFILE ---------------- */
   const updateProfile = async () => {
@@ -86,7 +99,12 @@ const Profile = () => {
       const res = await axios.put(
         `${backendUrl}/api/user/update-profile`,
         formData,
-        { headers: { token } }
+        {
+          headers: {
+            token,
+            "Content-Type": "multipart/form-data",
+          },
+        }
       );
 
       if (res.data.success) {
@@ -105,6 +123,15 @@ const Profile = () => {
       setLoading(false);
     }
   };
+
+  /* ---------------- LOADING STATES ---------------- */
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-500">Checking session...</p>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -138,7 +165,7 @@ const Profile = () => {
         <div className="p-4">
           {activeTab === "Profile" && (
             <>
-              {/* IMAGE */}
+              {/* PROFILE IMAGE */}
               <div className="flex flex-col items-center gap-4">
                 <img
                   src={
