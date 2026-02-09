@@ -27,6 +27,7 @@ const App = () => {
         hideProgressBar
         pauseOnHover={false}
         toastClassName="mobile-toast"
+         theme="dark"
       />
 
       <Navbar />
