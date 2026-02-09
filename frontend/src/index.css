@@ -24,3 +24,22 @@ a.active hr{
         color: white;
     }
 }
+.mobile-toast {
+  max-width: 90vw !important;
+  margin: 0 auto !important;
+  text-align: center;
+  border-radius: 10px;
+  font-size: 14px;
+}
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.25s ease-out;
+}

@@ -10,25 +10,56 @@ const ShopContextProvider = ({ children }) => {
   const delivery_fee = 10;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+  const navigate = useNavigate();
+
+  /* ---------------- STATE ---------------- */
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState({});
   const [token, setToken] = useState("");
   const [role, setRole] = useState("");
 
-  const navigate = useNavigate();
+  // ✅ USER PROFILE (IMPORTANT)
+  const [user, setUser] = useState(null);
+
+  // 🔍 SEARCH
+  const [showSearch, setShowSearch] = useState(false);
+  const [search, setSearch] = useState("");
+
+  /* ---------------- AUTH ---------------- */
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    setToken("");
+    setRole("");
+    setUser(null);
+    setCartItems({});
+    navigate("/login");
+  };
+
+  /* ---------------- USER PROFILE ---------------- */
+
+  const fetchUserProfile = async () => {
+    if (!token) return;
+
+    try {
+      const res = await axios.get(`${backendUrl}/api/user/profile`, {
+        headers: { token },
+      });
+
+      if (res.data.success) {
+        setUser(res.data.user);
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   /* ---------------- CART ---------------- */
 
   const addToCart = async (itemId, size) => {
-    if (!size) {
-      toast.error("Select Product Size");
-      return;
-    }
-
-    if (!token) {
-      toast.error("Login first");
-      return;
-    }
+    if (!size) return toast.error("Select Product Size");
+    if (!token) return toast.error("Login first");
 
     try {
       const res = await axios.post(
@@ -39,13 +70,10 @@ const ShopContextProvider = ({ children }) => {
 
       if (res.data.success) {
         setCartItems(res.data.cartData);
-        toast.success("Product added to cart successfully 🛒");
-      } else {
-        toast.error(res.data.message || "Failed to add product");
+        toast.success("Product added to cart 🛒");
       }
     } catch (error) {
       toast.error("Something went wrong");
-      console.log(error);
     }
   };
 
@@ -113,9 +141,7 @@ const ShopContextProvider = ({ children }) => {
   const getProductsData = async () => {
     try {
       const res = await axios.get(backendUrl + "/api/product/list");
-      if (res.data.success) {
-        setProducts(res.data.products);
-      }
+      if (res.data.success) setProducts(res.data.products);
     } catch (error) {
       console.log(error);
     }
@@ -136,7 +162,10 @@ const ShopContextProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (token) getUserCart();
+    if (token) {
+      fetchUserProfile(); // 🔥 KEY LINE
+      getUserCart();
+    }
   }, [token]);
 
   return (
@@ -145,17 +174,30 @@ const ShopContextProvider = ({ children }) => {
         products,
         currency,
         delivery_fee,
+
         cartItems,
         setCartItems,
         addToCart,
         updateQuantity,
         getCartCount,
         getCartAmount,
+
+        // 🔍 SEARCH
+        showSearch,
+        setShowSearch,
+        search,
+        setSearch,
+
+        // 👤 USER
+        user,
+        setUser,
+        fetchUserProfile,
+        logout,
+
         navigate,
         token,
         setToken,
         role,
-        setRole,
         backendUrl,
       }}
     >

@@ -4,7 +4,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const Login = () => {
-  const { setToken, setRole, navigate, backendUrl } = useContext(ShopContext);
+  const { setToken, navigate, backendUrl } = useContext(ShopContext);
 
   const [mode, setMode] = useState("login"); // login | register
   const [name, setName] = useState("");
@@ -27,8 +27,6 @@ const Login = () => {
         }
 
         setToken(res.data.token);
-        setRole(res.data.role);
-
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("role", res.data.role);
 
@@ -48,8 +46,6 @@ const Login = () => {
         }
 
         setToken(res.data.token);
-        setRole(res.data.role);
-
         localStorage.setItem("token", res.data.token);
         localStorage.setItem("role", res.data.role);
 
