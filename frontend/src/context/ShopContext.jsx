@@ -18,7 +18,7 @@ const ShopContextProvider = ({ children }) => {
   const [token, setToken] = useState("");
   const [role, setRole] = useState("");
 
-  // ✅ USER PROFILE (IMPORTANT)
+  // 👤 USER PROFILE
   const [user, setUser] = useState(null);
 
   // 🔍 SEARCH
@@ -63,7 +63,7 @@ const ShopContextProvider = ({ children }) => {
 
     try {
       const res = await axios.post(
-        backendUrl + "/api/cart/add",
+        `${backendUrl}/api/cart/add`,
         { itemId, size },
         { headers: { token } }
       );
@@ -71,6 +71,8 @@ const ShopContextProvider = ({ children }) => {
       if (res.data.success) {
         setCartItems(res.data.cartData);
         toast.success("Product added to cart 🛒");
+      } else {
+        toast.error(res.data.message || "Unable to add to cart");
       }
     } catch (error) {
       toast.error("Something went wrong");
@@ -82,13 +84,15 @@ const ShopContextProvider = ({ children }) => {
 
     try {
       const res = await axios.post(
-        backendUrl + "/api/cart/update",
+        `${backendUrl}/api/cart/update`,
         { itemId, size, quantity },
         { headers: { token } }
       );
 
       if (res.data.success) {
         setCartItems(res.data.cartData);
+      } else {
+        toast.error(res.data.message || "Stock limit reached");
       }
     } catch (error) {
       console.log(error);
@@ -100,7 +104,7 @@ const ShopContextProvider = ({ children }) => {
 
     try {
       const res = await axios.post(
-        backendUrl + "/api/cart/get",
+        `${backendUrl}/api/cart/get`,
         {},
         { headers: { token } }
       );
@@ -125,6 +129,7 @@ const ShopContextProvider = ({ children }) => {
 
   const getCartAmount = () => {
     let total = 0;
+
     for (const id in cartItems) {
       const product = products.find((p) => p._id === id);
       if (!product) continue;
@@ -133,6 +138,7 @@ const ShopContextProvider = ({ children }) => {
         total += product.price * cartItems[id][size];
       }
     }
+
     return total;
   };
 
@@ -140,7 +146,7 @@ const ShopContextProvider = ({ children }) => {
 
   const getProductsData = async () => {
     try {
-      const res = await axios.get(backendUrl + "/api/product/list");
+      const res = await axios.get(`${backendUrl}/api/product/list`);
       if (res.data.success) setProducts(res.data.products);
     } catch (error) {
       console.log(error);
@@ -163,7 +169,7 @@ const ShopContextProvider = ({ children }) => {
 
   useEffect(() => {
     if (token) {
-      fetchUserProfile(); // 🔥 KEY LINE
+      fetchUserProfile();
       getUserCart();
     }
   }, [token]);

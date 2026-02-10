@@ -49,6 +49,10 @@ const PlaceOrder = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  /* =========================
+     ✅ FIXED BUILD ORDER ITEMS
+     BACKEND NEEDS: itemId
+  ========================== */
   const buildOrderItems = () => {
     let orderItems = [];
 
@@ -56,16 +60,21 @@ const PlaceOrder = () => {
       for (const s in cartItems[p]) {
         if (cartItems[p][s] > 0) {
           const product = products.find(pr => pr._id === p);
+
           if (product) {
             orderItems.push({
-              ...product,
+              itemId: product._id,   // ✅ REQUIRED BY BACKEND
               size: s,
-              quantity: cartItems[p][s]
+              quantity: cartItems[p][s],
+              name: product.name,
+              price: product.price,
+              image: product.image
             });
           }
         }
       }
     }
+
     return orderItems;
   };
 
@@ -136,7 +145,7 @@ const PlaceOrder = () => {
               );
 
               if (verifyRes.data.success) {
-                toast.success("Razorpay payment successful ✅"); // ✅ ADDED
+                toast.success("Razorpay payment successful ✅");
                 setCartItems({});
                 navigate('/orders');
               } else {

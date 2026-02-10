@@ -10,16 +10,10 @@ const Navbar = () => {
   const profileRef = useRef(null);
   const location = useLocation();
 
-  const {
-    setShowSearch,
-    getCartCount,
-    navigate,
-    token,
-    user,
-    logout,
-  } = useContext(ShopContext);
+  const { setShowSearch, getCartCount, navigate, token, user, logout } =
+    useContext(ShopContext);
 
-  /* ---------------- CLOSE PROFILE ON OUTSIDE CLICK ---------------- */
+  /* ---------- CLOSE PROFILE ON OUTSIDE CLICK ---------- */
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) {
@@ -31,27 +25,39 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  /* ---------------- CLOSE MENUS ON ROUTE CHANGE ---------------- */
+  /* ---------- CLOSE MENUS ON ROUTE CHANGE ---------- */
   useEffect(() => {
     setMenuOpen(false);
     setProfileOpen(false);
   }, [location.pathname]);
 
-  const profileImage =
-    user?.profileImage
-      ? `${import.meta.env.VITE_BACKEND_URL}/${user.profileImage}`
-      : assets.profile_icon;
+  const profileImage = user?.profileImage
+    ? `${import.meta.env.VITE_BACKEND_URL}/${user.profileImage}`
+    : assets.profile_icon;
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b">
-      <div className="flex items-center justify-between px-4 py-4 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
         {/* LOGO */}
-        <Link to="/">
-          <img src={assets.logo} alt="logo" className="w-32 sm:w-36" />
+        <Link to="/" className="flex items-center">
+         <img
+  src={assets.logo}
+  alt="logo"
+  className="
+    h-14           /* mobile */
+    sm:h-20        /* tablets */
+    md:h-24        /* small desktop */
+    lg:h-28        /* large desktop */
+    w-auto
+    object-contain
+    transition
+  "
+/>
+
         </Link>
 
         {/* DESKTOP NAV */}
-        <nav className="hidden sm:flex gap-6 text-sm text-gray-700">
+        <nav className="hidden sm:flex gap-6 text-sm font-medium text-gray-700">
           <NavLink to="/">HOME</NavLink>
           <NavLink to="/collection">COLLECTION</NavLink>
           <NavLink to="/about">ABOUT</NavLink>
@@ -78,7 +84,7 @@ const Navbar = () => {
             />
 
             {token && profileOpen && (
-              <div className="absolute right-0 mt-3 w-44 bg-white shadow-lg rounded-md text-sm z-50 overflow-hidden">
+              <div className="absolute right-0 mt-3 w-44 bg-white shadow-lg rounded-md text-sm overflow-hidden z-50">
                 <button
                   onClick={() => navigate("/profile")}
                   className="w-full px-4 py-2 text-left hover:bg-gray-100"
