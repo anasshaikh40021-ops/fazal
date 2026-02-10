@@ -5,7 +5,7 @@ import { backendUrl } from "../App"
 import { toast } from "react-toastify"
 
 const Add = ({ token }) => {
-  const [images, setImages] = useState([null, null, null, null])
+  const [images, setImages] = useState([null, null, null, null, null, null, null])
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -13,7 +13,15 @@ const Add = ({ token }) => {
   const [category, setCategory] = useState("Men")
   const [subCategory, setSubCategory] = useState("Topwear")
   const [bestseller, setBestseller] = useState(false)
-  const [sizes, setSizes] = useState([])
+
+  // ✅ SIZE + STOCK (FIXED)
+  const [sizes, setSizes] = useState([
+    { size: "S", stock: 0 },
+    { size: "M", stock: 0 },
+    { size: "L", stock: 0 },
+    { size: "XL", stock: 0 },
+    { size: "XXL", stock: 0 },
+  ])
 
   const handleImageChange = (index, file) => {
     const updated = [...images]
@@ -21,8 +29,23 @@ const Add = ({ token }) => {
     setImages(updated)
   }
 
+  const updateStock = (size, stock) => {
+    setSizes(prev =>
+      prev.map(s =>
+        s.size === size ? { ...s, stock: Number(stock) } : s
+      )
+    )
+  }
+
   const onSubmitHandler = async () => {
     try {
+      // ✅ Only send sizes with stock > 0
+      const filteredSizes = sizes.filter(s => s.stock > 0)
+
+      if (filteredSizes.length === 0) {
+        return toast.error("Add stock for at least one size")
+      }
+
       const formData = new FormData()
       formData.append("name", name)
       formData.append("description", description)
@@ -30,7 +53,9 @@ const Add = ({ token }) => {
       formData.append("category", category)
       formData.append("subCategory", subCategory)
       formData.append("bestseller", bestseller)
-      formData.append("sizes", JSON.stringify(sizes))
+
+      // ✅ CORRECT FORMAT
+      formData.append("sizes", JSON.stringify(filteredSizes))
 
       images.forEach((img, i) => {
         if (img) formData.append(`image${i + 1}`, img)
@@ -51,8 +76,16 @@ const Add = ({ token }) => {
         setCategory("Men")
         setSubCategory("Topwear")
         setBestseller(false)
-        setSizes([])
-        setImages([null, null, null, null])
+        setImages([null, null, null, null, null, null, null])
+
+        // reset stocks
+        setSizes([
+          { size: "S", stock: 0 },
+          { size: "M", stock: 0 },
+          { size: "L", stock: 0 },
+          { size: "XL", stock: 0 },
+          { size: "XXL", stock: 0 },
+        ])
       } else {
         toast.error(response.data.message)
       }
@@ -91,7 +124,6 @@ const Add = ({ token }) => {
         onChange={(e) => setName(e.target.value)}
         className="px-3 py-2 border"
         placeholder="Product name"
-        required
       />
 
       <textarea
@@ -99,7 +131,6 @@ const Add = ({ token }) => {
         onChange={(e) => setDescription(e.target.value)}
         className="px-3 py-2 border"
         placeholder="Product description"
-        required
       />
 
       <div className="flex gap-4">
@@ -124,24 +155,24 @@ const Add = ({ token }) => {
         />
       </div>
 
-      <div className="flex gap-3">
-        {["S", "M", "L", "XL", "XXL"].map(size => (
-          <p
-            key={size}
-            onClick={() =>
-              setSizes(prev =>
-                prev.includes(size)
-                  ? prev.filter(s => s !== size)
-                  : [...prev, size]
-              )
-            }
-            className={`px-3 py-1 cursor-pointer ${
-              sizes.includes(size) ? "bg-pink-200" : "bg-slate-200"
-            }`}
-          >
-            {size}
-          </p>
-        ))}
+      {/* ✅ SIZE + STOCK UI */}
+      <div>
+        <p className="mb-2 font-medium">Size Stock</p>
+        <div className="flex flex-col gap-2">
+          {sizes.map(s => (
+            <div key={s.size} className="flex items-center gap-3">
+              <span className="w-10">{s.size}</span>
+              <input
+                type="number"
+                min="0"
+                value={s.stock}
+                onChange={(e) => updateStock(s.size, e.target.value)}
+                className="border px-2 py-1 w-24"
+                placeholder="Stock"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <label className="flex gap-2">
