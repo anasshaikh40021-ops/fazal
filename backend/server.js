@@ -15,14 +15,28 @@ import cartRouter from "./routes/cartRoute.js";
 import orderRouter from "./routes/orderRoute.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 const port = process.env.PORT || 4000;
 
-connectDB();
-connectCloudinary();
+/* ======================
+   CORS (Node 24 SAFE)
+====================== */
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5174", // Vite dev
+      "http://localhost:5173",
+      "https://fazal-frontend-topaz.vercel.app",
+    ],
+    credentials: true,
+  })
+);
+
+/* ======================
+   BODY PARSERS
+====================== */
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 /* ======================
    SECURITY
@@ -33,21 +47,14 @@ app.use(
   })
 );
 
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://fazal-frontend-topaz.vercel.app",
-    ],
-    credentials: true,
-  })
-);
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/* ======================
+   PATH SETUP
+====================== */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /* ======================
-   STATIC UPLOADS (FINAL FIX)
+   STATIC FILES
 ====================== */
 app.use(
   "/uploads",
@@ -59,7 +66,7 @@ app.use(
 );
 
 /* ======================
-   RATE LIMIT
+   RATE LIMITING
 ====================== */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -84,10 +91,19 @@ app.use("/api/cart", cartRouter);
 app.use("/api/order", orderRouter);
 app.use("/api/review", reviewRoutes);
 
+/* ======================
+   HEALTH CHECK
+====================== */
 app.get("/", (req, res) => {
   res.send("API Working ✅");
 });
 
+/* ======================
+   START SERVER
+====================== */
+connectDB();
+connectCloudinary();
+
 app.listen(port, () => {
-  console.log(`Server running on PORT: ${port}`);
+  console.log(`🚀 Server running on PORT: ${port}`);
 });

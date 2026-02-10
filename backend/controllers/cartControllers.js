@@ -1,14 +1,31 @@
 import userModel from "../models/userModel.js";
+import productModel from "../models/productModel.js";
 
 /* -------- ADD TO CART -------- */
 const addToCart = async (req, res) => {
   try {
     const userId = req.user.id || req.user._id;
-
     const { itemId, size } = req.body;
 
     const user = await userModel.findById(userId);
     if (!user) return res.json({ success: false });
+
+    const product = await productModel.findById(itemId);
+    if (!product) {
+      return res.json({ success: false, message: "Product not found" });
+    }
+
+    // ✅ SIZE-WISE STOCK CHECK
+    const sizeObj = product.sizes.find((s) => s.size === size);
+
+    if (!sizeObj) {
+      return res.json({
+        success: false,
+        message: "Selected size not available",
+      });
+    }
+
+    const availableStock = sizeObj.stock;
 
     let cartData = user.cartData || {};
 
@@ -16,11 +33,19 @@ const addToCart = async (req, res) => {
       cartData[itemId] = {};
     }
 
-    cartData[itemId][size] = (cartData[itemId][size] || 0) + 1;
+    const currentQty = cartData[itemId][size] || 0;
+    const newQty = currentQty + 1;
+
+    if (newQty > availableStock) {
+      return res.json({
+        success: false,
+        message: "Not enough stock for selected size",
+      });
+    }
+
+    cartData[itemId][size] = newQty;
 
     user.cartData = cartData;
-
-    // ✅ THIS IS THE FIX
     user.markModified("cartData");
 
     await user.save();
@@ -41,7 +66,35 @@ const updateCart = async (req, res) => {
     const user = await userModel.findById(userId);
     if (!user) return res.json({ success: false });
 
+    const product = await productModel.findById(itemId);
+    if (!product) {
+      return res.json({ success: false, message: "Product not found" });
+    }
+
+    // ✅ SIZE-WISE STOCK CHECK
+    const sizeObj = product.sizes.find((s) => s.size === size);
+
+    if (!sizeObj) {
+      return res.json({
+        success: false,
+        message: "Selected size not available",
+      });
+    }
+
+    const availableStock = sizeObj.stock;
+
+    if (quantity > availableStock) {
+      return res.json({
+        success: false,
+        message: "Requested quantity exceeds stock for this size",
+      });
+    }
+
     let cartData = user.cartData || {};
+
+    if (!cartData[itemId]) {
+      cartData[itemId] = {};
+    }
 
     if (quantity === 0) {
       delete cartData[itemId][size];
@@ -53,8 +106,6 @@ const updateCart = async (req, res) => {
     }
 
     user.cartData = cartData;
-
-    // ✅ SAME FIX HERE
     user.markModified("cartData");
 
     await user.save();
@@ -70,10 +121,9 @@ const updateCart = async (req, res) => {
 const getUserCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    
+
     const user = await userModel.findById(userId);
-    
+
     if (!user) return res.json({ success: true, cartData: {} });
 
     res.json({ success: true, cartData: user.cartData || {} });

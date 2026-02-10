@@ -1,5 +1,6 @@
 import orderModel from "../models/orderModel.js";
 import userModel from "../models/userModel.js";
+import productModel from "../models/productModel.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import sendEmail from "../config/sendEmail.js";
@@ -13,6 +14,34 @@ const razorpayInstance = new Razorpay({
 });
 
 /* =======================
+   ATOMIC SIZE-WISE STOCK DEDUCTION
+   (NO RACE CONDITIONS)
+======================= */
+const deductStockForOrder = async (items) => {
+  for (const item of items) {
+    const { itemId, size, quantity } = item;
+
+    const result = await productModel.findOneAndUpdate(
+      {
+        _id: itemId,
+        "sizes.size": size,
+        "sizes.stock": { $gte: quantity },
+      },
+      {
+        $inc: { "sizes.$.stock": -quantity },
+      },
+      { new: true }
+    );
+
+    if (!result) {
+      throw new Error(
+        `Insufficient stock for product ${itemId} (Size: ${size})`
+      );
+    }
+  }
+};
+
+/* =======================
    PLACE ORDER - COD
 ======================= */
 const placeOrder = async (req, res) => {
@@ -23,6 +52,9 @@ const placeOrder = async (req, res) => {
       return res.json({ success: false, message: "Cart is empty" });
     }
 
+    // ✅ ATOMIC STOCK DEDUCTION
+    await deductStockForOrder(items);
+
     const newOrder = new orderModel({
       userId: req.user.id,
       items,
@@ -30,6 +62,7 @@ const placeOrder = async (req, res) => {
       amount,
       paymentMethod: "Cash on Delivery",
       payment: false,
+      paymentStatus: "pending",
       status: "Order Placed",
       date: Date.now(),
     });
@@ -55,12 +88,16 @@ const placeOrder = async (req, res) => {
     res.json({ success: true, message: "Order placed successfully" });
   } catch (error) {
     console.log(error);
-    res.json({ success: false, message: error.message });
+    res.json({
+      success: false,
+      message: error.message || "Order failed due to stock issue",
+    });
   }
 };
 
 /* =======================
    PLACE ORDER - RAZORPAY
+   (NO STOCK DEDUCTION YET)
 ======================= */
 const placeOrderRazorpay = async (req, res) => {
   try {
@@ -83,6 +120,7 @@ const placeOrderRazorpay = async (req, res) => {
       amount,
       paymentMethod: "Razorpay",
       payment: false,
+      paymentStatus: "pending",
       razorpayOrderId: razorpayOrder.id,
       status: "Payment Pending",
       date: Date.now(),
@@ -105,6 +143,7 @@ const placeOrderRazorpay = async (req, res) => {
 
 /* =======================
    VERIFY RAZORPAY PAYMENT
+   (ATOMIC STOCK DEDUCTION HERE)
 ======================= */
 const verifyRazorpayPayment = async (req, res) => {
   try {
@@ -126,10 +165,22 @@ const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
-    const order = await orderModel.findOneAndUpdate(
+    const order = await orderModel.findOne({
+      razorpayOrderId: razorpay_order_id,
+    });
+
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // ✅ ATOMIC STOCK DEDUCTION AFTER PAYMENT SUCCESS
+    await deductStockForOrder(order.items);
+
+    const updatedOrder = await orderModel.findOneAndUpdate(
       { razorpayOrderId: razorpay_order_id },
       {
         payment: true,
+        paymentStatus: "success",
         status: "Order Placed",
         razorpayPaymentId: razorpay_payment_id,
       },
@@ -147,7 +198,7 @@ const verifyRazorpayPayment = async (req, res) => {
         subject: "Payment Successful - Fazal Store",
         title: "Payment Successful ✅",
         message: "Your payment has been received and order is confirmed.",
-        order,
+        order: updatedOrder,
         paymentMethod: "Razorpay",
         paymentStatus: "Paid",
       });
@@ -156,7 +207,12 @@ const verifyRazorpayPayment = async (req, res) => {
     res.json({ success: true, message: "Payment verified successfully" });
   } catch (error) {
     console.log(error);
-    res.json({ success: false, message: error.message });
+    res.json({
+      success: false,
+      message:
+        error.message ||
+        "Payment verified but stock issue occurred",
+    });
   }
 };
 
