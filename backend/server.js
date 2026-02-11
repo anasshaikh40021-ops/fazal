@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import connectDB from "./config/mongodb.js";
-import connectCloudinary from "./config/cloudinary.js";
+import { connectCloudinary } from "./config/cloudinary.js";
 
 import userRouter from "./routes/userRoute.js";
 import productRouter from "./routes/productRoute.js";

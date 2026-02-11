@@ -19,4 +19,4 @@ const connectCloudinary = () => {
   console.log("☁️ Cloudinary connected");
 };
 
-export default connectCloudinary;
+export { cloudinary, connectCloudinary };

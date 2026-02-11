@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import validator from "validator";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import cloudinary from "../config/cloudinary.js";
+import { cloudinary } from "../config/cloudinary.js";
 
 /* =====================
    TOKEN
@@ -104,7 +104,7 @@ const getUserProfile = async (req, res) => {
 };
 
 /* =====================
-   UPDATE PROFILE (VERCEL SAFE) ✅
+   UPDATE PROFILE (CLOUDINARY + MEMORY UPLOAD) ✅
 ===================== */
 const updateUserProfile = async (req, res) => {
   try {
@@ -117,18 +117,18 @@ const updateUserProfile = async (req, res) => {
       user.name = req.body.name;
     }
 
-    // Remove image
+    // 🗑 REMOVE IMAGE
     if (req.body.removeImage === "true") {
-      if (user.profileImage) {
+      if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
+
       user.profileImage = "";
       user.profileImagePublicId = "";
     }
 
-    // Upload new image
+    // ☁️ UPLOAD NEW IMAGE
     if (req.file) {
-      // delete old
       if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
