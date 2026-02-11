@@ -14,28 +14,72 @@ const razorpayInstance = new Razorpay({
 });
 
 /* =======================
-   ATOMIC SIZE-WISE STOCK DEDUCTION
-   (NO RACE CONDITIONS)
+   PREPARE ORDER ITEMS
+   (ADD PRODUCT IMAGE + NAME SAFELY)
+======================= */
+const prepareOrderItems = async (items) => {
+  const updatedItems = [];
+
+  for (const item of items) {
+    const product = await productModel.findById(item.itemId);
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    updatedItems.push({
+      productId: product._id,
+      name: product.name,
+      price: product.price,
+      quantity: item.quantity,
+      image: product.image[0], // ✅ first product image
+      size: item.size,
+    });
+  }
+
+  return updatedItems;
+};
+
+/* =======================
+   SAVE ADDRESS TO USER
+======================= */
+const saveAddressToUser = async (userId, address) => {
+  const user = await userModel.findById(userId);
+
+  if (!user) return;
+
+  const alreadyExists = user.addresses.some(
+    (addr) =>
+      addr.address === address.address &&
+      addr.pincode === address.pincode
+  );
+
+  if (!alreadyExists) {
+    user.addresses.push(address);
+    await user.save();
+  }
+};
+
+/* =======================
+   ATOMIC STOCK DEDUCTION
 ======================= */
 const deductStockForOrder = async (items) => {
   for (const item of items) {
-    const { itemId, size, quantity } = item;
-
     const result = await productModel.findOneAndUpdate(
       {
-        _id: itemId,
-        "sizes.size": size,
-        "sizes.stock": { $gte: quantity },
+        _id: item.productId,
+        "sizes.size": item.size,
+        "sizes.stock": { $gte: item.quantity },
       },
       {
-        $inc: { "sizes.$.stock": -quantity },
+        $inc: { "sizes.$.stock": -item.quantity },
       },
       { new: true }
     );
 
     if (!result) {
       throw new Error(
-        `Insufficient stock for product ${itemId} (Size: ${size})`
+        `Insufficient stock for product ${item.productId} (Size: ${item.size})`
       );
     }
   }
@@ -52,12 +96,15 @@ const placeOrder = async (req, res) => {
       return res.json({ success: false, message: "Cart is empty" });
     }
 
-    // ✅ ATOMIC STOCK DEDUCTION
-    await deductStockForOrder(items);
+    // ✅ Attach images + clean structure
+    const preparedItems = await prepareOrderItems(items);
+
+    // ✅ Deduct stock
+    await deductStockForOrder(preparedItems);
 
     const newOrder = new orderModel({
       userId: req.user.id,
-      items,
+      items: preparedItems,
       address,
       amount,
       paymentMethod: "Cash on Delivery",
@@ -68,36 +115,25 @@ const placeOrder = async (req, res) => {
     });
 
     await newOrder.save();
+
+    // ✅ Clear cart
     await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
 
-    /* ===== SEND EMAIL (COD) ===== */
-    const user = await userModel.findById(req.user.id);
-
-    if (user?.email) {
-      await sendEmail({
-        email: user.email,
-        subject: "Order Placed Successfully - Fazal Store",
-        title: "Thank you for your order 🎉",
-        message: "Your order has been placed successfully.",
-        order: newOrder,
-        paymentMethod: "Cash on Delivery",
-        paymentStatus: "Payment Pending",
-      });
-    }
+    // ✅ Save address to user profile
+    await saveAddressToUser(req.user.id, address);
 
     res.json({ success: true, message: "Order placed successfully" });
   } catch (error) {
     console.log(error);
     res.json({
       success: false,
-      message: error.message || "Order failed due to stock issue",
+      message: error.message || "Order failed",
     });
   }
 };
 
 /* =======================
    PLACE ORDER - RAZORPAY
-   (NO STOCK DEDUCTION YET)
 ======================= */
 const placeOrderRazorpay = async (req, res) => {
   try {
@@ -107,6 +143,8 @@ const placeOrderRazorpay = async (req, res) => {
       return res.json({ success: false, message: "Cart is empty" });
     }
 
+    const preparedItems = await prepareOrderItems(items);
+
     const razorpayOrder = await razorpayInstance.orders.create({
       amount: amount * 100,
       currency: "INR",
@@ -115,7 +153,7 @@ const placeOrderRazorpay = async (req, res) => {
 
     const newOrder = new orderModel({
       userId: req.user.id,
-      items,
+      items: preparedItems,
       address,
       amount,
       paymentMethod: "Razorpay",
@@ -143,7 +181,6 @@ const placeOrderRazorpay = async (req, res) => {
 
 /* =======================
    VERIFY RAZORPAY PAYMENT
-   (ATOMIC STOCK DEDUCTION HERE)
 ======================= */
 const verifyRazorpayPayment = async (req, res) => {
   try {
@@ -173,7 +210,7 @@ const verifyRazorpayPayment = async (req, res) => {
       return res.json({ success: false, message: "Order not found" });
     }
 
-    // ✅ ATOMIC STOCK DEDUCTION AFTER PAYMENT SUCCESS
+    // ✅ Deduct stock after success
     await deductStockForOrder(order.items);
 
     const updatedOrder = await orderModel.findOneAndUpdate(
@@ -189,29 +226,15 @@ const verifyRazorpayPayment = async (req, res) => {
 
     await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
 
-    /* ===== SEND EMAIL (RAZORPAY SUCCESS) ===== */
-    const user = await userModel.findById(req.user.id);
-
-    if (user?.email) {
-      await sendEmail({
-        email: user.email,
-        subject: "Payment Successful - Fazal Store",
-        title: "Payment Successful ✅",
-        message: "Your payment has been received and order is confirmed.",
-        order: updatedOrder,
-        paymentMethod: "Razorpay",
-        paymentStatus: "Paid",
-      });
-    }
+    // ✅ Save address to user profile
+    await saveAddressToUser(req.user.id, updatedOrder.address);
 
     res.json({ success: true, message: "Payment verified successfully" });
   } catch (error) {
     console.log(error);
     res.json({
       success: false,
-      message:
-        error.message ||
-        "Payment verified but stock issue occurred",
+      message: error.message || "Payment verification failed",
     });
   }
 };
@@ -224,13 +247,13 @@ const allOrders = async (req, res) => {
     const orders = await orderModel.find().sort({ date: -1 });
     res.json({ success: true, orders });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
 /* =======================
    USER - OWN ORDERS
+   (DELIVERED ORDERS WILL ALSO SHOW)
 ======================= */
 const userOrders = async (req, res) => {
   try {
@@ -240,7 +263,6 @@ const userOrders = async (req, res) => {
 
     res.json({ success: true, orders });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -254,14 +276,10 @@ const updateStatus = async (req, res) => {
     await orderModel.findByIdAndUpdate(orderId, { status });
     res.json({ success: true, message: "Order status updated" });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
 
-/* =======================
-   EXPORTS
-======================= */
 export {
   placeOrder,
   placeOrderRazorpay,

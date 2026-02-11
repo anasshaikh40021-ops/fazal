@@ -1,34 +1,101 @@
-import mongoose from 'mongoose'
+import mongoose from "mongoose";
 
-const orderSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
+/* =========================
+   ORDER ITEM SCHEMA
+========================= */
+const orderItemSchema = new mongoose.Schema({
+  productId: {
+    type: String,
+    required: true,
+  },
 
-    items: { type: Array, required: true },
-    amount: { type: Number, required: true },
-    address: { type: Object, required: true },
+  name: {
+    type: String,
+    required: true,
+  },
 
-    // Existing status (KEEPING IT)
-    status: { type: String, required: true, default: 'Order Placed' },
+  price: {
+    type: Number,
+    required: true,
+  },
 
-    paymentMethod: { type: String, required: true },
+  quantity: {
+    type: Number,
+    required: true,
+  },
 
-    // Existing payment flag (KEEPING IT)
-    payment: { type: Boolean, required: true, default: false },
+  image: {
+    type: String, // ✅ store product image here
+    required: true,
+  },
+});
 
-    // 🔹 NEW (safe additions)
+/* =========================
+   ADDRESS SCHEMA
+========================= */
+const addressSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  phone: { type: String, required: true },
+  address: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
+  pincode: { type: String, required: true },
+});
+
+/* =========================
+   ORDER SCHEMA
+========================= */
+const orderSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: String,
+      required: true,
+    },
+
+    items: [orderItemSchema], // ✅ structured items
+
+    amount: {
+      type: Number,
+      required: true,
+    },
+
+    address: addressSchema, // ✅ structured address
+
+    status: {
+      type: String,
+      required: true,
+      default: "Order Placed",
+    },
+
+    paymentMethod: {
+      type: String,
+      required: true,
+    },
+
+    payment: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+
     paymentStatus: {
-        type: String,
-        enum: ['pending', 'success', 'failed'],
-        default: 'pending'
+      type: String,
+      enum: ["pending", "success", "failed"],
+      default: "pending",
     },
 
     razorpayOrderId: { type: String },
     razorpayPaymentId: { type: String },
 
-    date: { type: Number, required: true },
-})
+    date: {
+      type: Number,
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
 
 const orderModel =
-    mongoose.models.order || mongoose.model('order', orderSchema)
+  mongoose.models.order || mongoose.model("order", orderSchema);
 
-export default orderModel
+export default orderModel;

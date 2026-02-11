@@ -104,7 +104,7 @@ const getUserProfile = async (req, res) => {
 };
 
 /* =====================
-   UPDATE PROFILE (CLOUDINARY + MEMORY UPLOAD) ✅
+   UPDATE PROFILE
 ===================== */
 const updateUserProfile = async (req, res) => {
   try {
@@ -117,17 +117,14 @@ const updateUserProfile = async (req, res) => {
       user.name = req.body.name;
     }
 
-    // 🗑 REMOVE IMAGE
     if (req.body.removeImage === "true") {
       if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
-
       user.profileImage = "";
       user.profileImagePublicId = "";
     }
 
-    // ☁️ UPLOAD NEW IMAGE
     if (req.file) {
       if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
@@ -149,6 +146,90 @@ const updateUserProfile = async (req, res) => {
     res.json({ success: true, user: updatedUser });
   } catch (error) {
     console.error("UPDATE PROFILE ERROR:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+/* =====================
+   ADD ADDRESS
+===================== */
+const addAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    user.addresses.push(req.body);
+    await user.save();
+
+    res.json({ success: true, addresses: user.addresses });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+/* =====================
+   DELETE ADDRESS
+===================== */
+const deleteAddress = async (req, res) => {
+  try {
+    const { index } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    user.addresses.splice(index, 1);
+    await user.save();
+
+    res.json({ success: true, addresses: user.addresses });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+/* =======================
+   GET SAVED ADDRESSES
+======================= */
+const getUserAddresses = async (req, res) => {
+  try {
+    const user = await userModel.findById(req.user.id);
+
+    if (!user) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      addresses: user.addresses || [],
+    });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+/* =====================
+   CHANGE PASSWORD (SECURITY TAB)
+===================== */
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await User.findById(req.user.id);
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "Current password incorrect" });
+    }
+
+    if (newPassword.length < 8) {
+      return res.json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    res.json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
@@ -230,6 +311,10 @@ export {
   registerUser,
   getUserProfile,
   updateUserProfile,
+  addAddress,
+  deleteAddress,
+  changePassword,
   forgotPassword,
   resetPassword,
+  getUserAddresses,
 };
