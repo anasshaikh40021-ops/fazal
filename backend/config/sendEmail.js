@@ -76,6 +76,8 @@ const emailTemplate = ({
   `;
 };
 
+
+
 /* =======================
    SEND EMAIL FUNCTION
 ======================= */

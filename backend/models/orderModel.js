@@ -24,8 +24,13 @@ const orderItemSchema = new mongoose.Schema({
     required: true,
   },
 
+  size: {
+    type: String,            // ✅ ADD THIS (VERY IMPORTANT)
+    required: true,
+  },
+
   image: {
-    type: String, // ✅ store product image here
+    type: String,
     required: true,
   },
 });
@@ -37,8 +42,8 @@ const addressSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, required: true },
   address: { type: String, required: true },
-  city: { type: String, required: true },
-  state: { type: String, required: true },
+  city: { type: String },
+  state: { type: String },
   pincode: { type: String, required: true },
 });
 
@@ -52,14 +57,20 @@ const orderSchema = new mongoose.Schema(
       required: true,
     },
 
-    items: [orderItemSchema], // ✅ structured items
+    items: {
+      type: [orderItemSchema],
+      required: true,
+    },
 
     amount: {
       type: Number,
       required: true,
     },
 
-    address: addressSchema, // ✅ structured address
+    address: {
+      type: addressSchema,
+      required: true,
+    },
 
     status: {
       type: String,
@@ -74,7 +85,6 @@ const orderSchema = new mongoose.Schema(
 
     payment: {
       type: Boolean,
-      required: true,
       default: false,
     },
 
@@ -84,8 +94,13 @@ const orderSchema = new mongoose.Schema(
       default: "pending",
     },
 
-    razorpayOrderId: { type: String },
-    razorpayPaymentId: { type: String },
+    razorpayOrderId: {
+      type: String,
+    },
+
+    razorpayPaymentId: {
+      type: String,
+    },
 
     date: {
       type: Number,

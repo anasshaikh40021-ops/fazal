@@ -23,14 +23,12 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User does not exist" });
-    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
+    if (!isMatch)
       return res.json({ success: false, message: "Invalid credentials" });
-    }
 
     const token = createToken({ id: user._id, role: user.role });
 
@@ -51,20 +49,17 @@ const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (await User.findOne({ email })) {
+    if (await User.findOne({ email }))
       return res.json({ success: false, message: "User already exists" });
-    }
 
-    if (!validator.isEmail(email)) {
+    if (!validator.isEmail(email))
       return res.json({ success: false, message: "Invalid email" });
-    }
 
-    if (password.length < 8) {
+    if (password.length < 8)
       return res.json({
         success: false,
         message: "Password must be at least 8 characters",
       });
-    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -93,9 +88,8 @@ const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
 
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User not found" });
-    }
 
     res.json({ success: true, user });
   } catch (error) {
@@ -109,31 +103,40 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User not found" });
-    }
 
+    /* -------- UPDATE NAME -------- */
     if (req.body.name) {
       user.name = req.body.name;
     }
 
+    /* -------- REMOVE IMAGE -------- */
     if (req.body.removeImage === "true") {
       if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
+
       user.profileImage = "";
       user.profileImagePublicId = "";
     }
 
-    if (req.file) {
+    /* -------- UPLOAD NEW IMAGE -------- */
+    if (req.file && req.file.buffer) {
+      // Remove old image first
       if (user.profileImagePublicId) {
         await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
 
-      const result = await cloudinary.uploader.upload(
-        `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
-        { folder: "profiles" }
-      );
+      const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString(
+        "base64"
+      )}`;
+
+      const result = await cloudinary.uploader.upload(base64Image, {
+        folder: "profiles",
+        public_id: `user_${user._id}_${Date.now()}`, // UNIQUE ID (fix cache issue)
+        overwrite: true,
+      });
 
       user.profileImage = result.secure_url;
       user.profileImagePublicId = result.public_id;
@@ -183,16 +186,16 @@ const deleteAddress = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
 /* =======================
    GET SAVED ADDRESSES
 ======================= */
 const getUserAddresses = async (req, res) => {
   try {
-    const user = await userModel.findById(req.user.id);
+    const user = await User.findById(req.user.id);
 
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User not found" });
-    }
 
     res.json({
       success: true,
@@ -203,9 +206,8 @@ const getUserAddresses = async (req, res) => {
   }
 };
 
-
 /* =====================
-   CHANGE PASSWORD (SECURITY TAB)
+   CHANGE PASSWORD
 ===================== */
 const changePassword = async (req, res) => {
   try {
@@ -214,16 +216,17 @@ const changePassword = async (req, res) => {
     const user = await User.findById(req.user.id);
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.json({ success: false, message: "Current password incorrect" });
-    }
+    if (!isMatch)
+      return res.json({
+        success: false,
+        message: "Current password incorrect",
+      });
 
-    if (newPassword.length < 8) {
+    if (newPassword.length < 8)
       return res.json({
         success: false,
         message: "Password must be at least 8 characters",
       });
-    }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
@@ -240,9 +243,8 @@ const changePassword = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "User not found" });
-    }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
 
@@ -291,9 +293,8 @@ const resetPassword = async (req, res) => {
       resetPasswordExpire: { $gt: Date.now() },
     });
 
-    if (!user) {
+    if (!user)
       return res.json({ success: false, message: "Token expired" });
-    }
 
     user.password = await bcrypt.hash(req.body.password, 10);
     user.resetPasswordToken = undefined;

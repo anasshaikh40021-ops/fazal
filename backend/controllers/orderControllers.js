@@ -15,57 +15,50 @@ const razorpayInstance = new Razorpay({
 
 /* =======================
    PREPARE ORDER ITEMS
-   (ADD PRODUCT IMAGE + NAME SAFELY)
 ======================= */
 const prepareOrderItems = async (items) => {
-  const updatedItems = [];
+  const preparedItems = [];
 
   for (const item of items) {
     const product = await productModel.findById(item.itemId);
+    if (!product) throw new Error("Product not found");
 
-    if (!product) {
-      throw new Error("Product not found");
-    }
+    const selectedSize = product.sizes.find(
+      (s) => s.size === item.size
+    );
 
-    updatedItems.push({
-      productId: product._id,
+    if (!selectedSize)
+      throw new Error(
+        `Size ${item.size} not available for ${product.name}`
+      );
+
+    if (selectedSize.stock < item.quantity)
+      throw new Error(
+        `Insufficient stock for ${product.name} (Size: ${item.size})`
+      );
+
+    preparedItems.push({
+      productId: product._id.toString(),
       name: product.name,
       price: product.price,
       quantity: item.quantity,
-      image: product.image[0], // ✅ first product image
+      image: product.image?.[0] || "",
       size: item.size,
     });
   }
 
-  return updatedItems;
+  return preparedItems;
 };
 
 /* =======================
-   SAVE ADDRESS TO USER
-======================= */
-const saveAddressToUser = async (userId, address) => {
-  const user = await userModel.findById(userId);
-
-  if (!user) return;
-
-  const alreadyExists = user.addresses.some(
-    (addr) =>
-      addr.address === address.address &&
-      addr.pincode === address.pincode
-  );
-
-  if (!alreadyExists) {
-    user.addresses.push(address);
-    await user.save();
-  }
-};
-
-/* =======================
-   ATOMIC STOCK DEDUCTION
+   DEDUCT STOCK
 ======================= */
 const deductStockForOrder = async (items) => {
   for (const item of items) {
-    const result = await productModel.findOneAndUpdate(
+    if (!item.size)
+      throw new Error(`Size missing for product ${item.productId}`);
+
+    const updated = await productModel.findOneAndUpdate(
       {
         _id: item.productId,
         "sizes.size": item.size,
@@ -77,12 +70,48 @@ const deductStockForOrder = async (items) => {
       { new: true }
     );
 
-    if (!result) {
+    if (!updated)
       throw new Error(
         `Insufficient stock for product ${item.productId} (Size: ${item.size})`
       );
-    }
   }
+};
+
+/* =======================
+   SAVE ADDRESS
+======================= */
+const saveAddressToUser = async (userId, address) => {
+  const user = await userModel.findById(userId);
+  if (!user) return;
+
+  const exists = user.addresses?.some(
+    (addr) =>
+      addr.address === address.address &&
+      addr.pincode === address.pincode
+  );
+
+  if (!exists) {
+    user.addresses.push(address);
+    await user.save();
+  }
+};
+
+/* =======================
+   SEND ORDER EMAIL
+======================= */
+const sendOrderConfirmationEmail = async (userId, order) => {
+  const user = await userModel.findById(userId);
+  if (!user || !user.email) return;
+
+  await sendEmail({
+    email: user.email,
+    subject: "Order Confirmation - Fazal Store",
+    title: "Your Order Has Been Confirmed 🎉",
+    message: "Thank you for shopping with us!",
+    order,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+  });
 };
 
 /* =======================
@@ -92,17 +121,14 @@ const placeOrder = async (req, res) => {
   try {
     const { items, amount, address } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!items || items.length === 0)
       return res.json({ success: false, message: "Cart is empty" });
-    }
 
-    // ✅ Attach images + clean structure
     const preparedItems = await prepareOrderItems(items);
 
-    // ✅ Deduct stock
     await deductStockForOrder(preparedItems);
 
-    const newOrder = new orderModel({
+    const newOrder = await orderModel.create({
       userId: req.user.id,
       items: preparedItems,
       address,
@@ -114,21 +140,15 @@ const placeOrder = async (req, res) => {
       date: Date.now(),
     });
 
-    await newOrder.save();
-
-    // ✅ Clear cart
     await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
-
-    // ✅ Save address to user profile
     await saveAddressToUser(req.user.id, address);
+
+    await sendOrderConfirmationEmail(req.user.id, newOrder);
 
     res.json({ success: true, message: "Order placed successfully" });
   } catch (error) {
     console.log(error);
-    res.json({
-      success: false,
-      message: error.message || "Order failed",
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -139,9 +159,8 @@ const placeOrderRazorpay = async (req, res) => {
   try {
     const { items, amount, address } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!items || items.length === 0)
       return res.json({ success: false, message: "Cart is empty" });
-    }
 
     const preparedItems = await prepareOrderItems(items);
 
@@ -151,7 +170,7 @@ const placeOrderRazorpay = async (req, res) => {
       receipt: `receipt_${Date.now()}`,
     });
 
-    const newOrder = new orderModel({
+    await orderModel.create({
       userId: req.user.id,
       items: preparedItems,
       address,
@@ -163,8 +182,6 @@ const placeOrderRazorpay = async (req, res) => {
       status: "Payment Pending",
       date: Date.now(),
     });
-
-    await newOrder.save();
 
     res.json({
       success: true,
@@ -195,47 +212,40 @@ const verifyRazorpayPayment = async (req, res) => {
       .update(razorpay_order_id + "|" + razorpay_payment_id)
       .digest("hex");
 
-    if (generatedSignature !== razorpay_signature) {
+    if (generatedSignature !== razorpay_signature)
       return res.json({
         success: false,
         message: "Payment verification failed",
       });
-    }
 
     const order = await orderModel.findOne({
       razorpayOrderId: razorpay_order_id,
     });
 
-    if (!order) {
+    if (!order)
       return res.json({ success: false, message: "Order not found" });
-    }
 
-    // ✅ Deduct stock after success
+    if (order.paymentStatus === "success")
+      return res.json({ success: true });
+
     await deductStockForOrder(order.items);
 
-    const updatedOrder = await orderModel.findOneAndUpdate(
-      { razorpayOrderId: razorpay_order_id },
-      {
-        payment: true,
-        paymentStatus: "success",
-        status: "Order Placed",
-        razorpayPaymentId: razorpay_payment_id,
-      },
-      { new: true }
-    );
+    order.payment = true;
+    order.paymentStatus = "success";
+    order.status = "Order Placed";
+    order.razorpayPaymentId = razorpay_payment_id;
 
-    await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
+    await order.save();
 
-    // ✅ Save address to user profile
-    await saveAddressToUser(req.user.id, updatedOrder.address);
+    await userModel.findByIdAndUpdate(order.userId, { cartData: {} });
+    await saveAddressToUser(order.userId, order.address);
+
+    await sendOrderConfirmationEmail(order.userId, order);
 
     res.json({ success: true, message: "Payment verified successfully" });
   } catch (error) {
     console.log(error);
-    res.json({
-      success: false,
-      message: error.message || "Payment verification failed",
-    });
+    res.json({ success: false, message: error.message });
   }
 };
 
@@ -244,7 +254,7 @@ const verifyRazorpayPayment = async (req, res) => {
 ======================= */
 const allOrders = async (req, res) => {
   try {
-    const orders = await orderModel.find().sort({ date: -1 });
+    const orders = await orderModel.find().sort({ createdAt: -1 });
     res.json({ success: true, orders });
   } catch (error) {
     res.json({ success: false, message: error.message });
@@ -253,13 +263,12 @@ const allOrders = async (req, res) => {
 
 /* =======================
    USER - OWN ORDERS
-   (DELIVERED ORDERS WILL ALSO SHOW)
 ======================= */
 const userOrders = async (req, res) => {
   try {
     const orders = await orderModel
       .find({ userId: req.user.id })
-      .sort({ date: -1 });
+      .sort({ createdAt: -1 });
 
     res.json({ success: true, orders });
   } catch (error) {
