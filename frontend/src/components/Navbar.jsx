@@ -31,8 +31,9 @@ const Navbar = () => {
     setProfileOpen(false);
   }, [location.pathname]);
 
+  // ✅ FIXED: Cloudinary already gives full URL
   const profileImage = user?.profileImage
-    ? `${import.meta.env.VITE_BACKEND_URL}/${user.profileImage}`
+    ? user.profileImage
     : assets.profile_icon;
 
   return (
@@ -40,20 +41,19 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
         {/* LOGO */}
         <Link to="/" className="flex items-center">
-         <img
-  src={assets.logo}
-  alt="logo"
-  className="
-    h-14           /* mobile */
-    sm:h-20        /* tablets */
-    md:h-24        /* small desktop */
-    lg:h-28        /* large desktop */
-    w-auto
-    object-contain
-    transition
-  "
-/>
-
+          <img
+            src={assets.logo}
+            alt="logo"
+            className="
+              h-14
+              sm:h-20
+              md:h-24
+              lg:h-28
+              w-auto
+              object-contain
+              transition
+            "
+          />
         </Link>
 
         {/* DESKTOP NAV */}

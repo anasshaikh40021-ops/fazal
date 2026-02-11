@@ -21,7 +21,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
-  /* ---------------- AUTH GUARD (FIXED) ---------------- */
+  /* ---------------- AUTH GUARD ---------------- */
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
 
@@ -37,10 +37,10 @@ const Profile = () => {
     if (!user) return;
 
     setName(user.name || "");
-    setPreview(
-      user.profileImage ? `${backendUrl}/${user.profileImage}` : ""
-    );
-  }, [user, backendUrl]);
+
+    // ✅ FIXED: Cloudinary already gives full URL
+    setPreview(user.profileImage || "");
+  }, [user]);
 
   /* ---------------- IMAGE PREVIEW ---------------- */
   useEffect(() => {
@@ -52,35 +52,32 @@ const Profile = () => {
     return () => URL.revokeObjectURL(url);
   }, [image]);
 
-  /* ---------------- REMOVE PHOTO (FIXED) ---------------- */
   /* ---------------- REMOVE PHOTO ---------------- */
-const removePhoto = async () => {
-  try {
-    const formData = new FormData();
-    formData.append("removeImage", "true");
+  const removePhoto = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("removeImage", "true");
 
-    const res = await axios.put(
-      `${backendUrl}/api/user/update-profile`,
-      formData,
-      {
-        headers: {
-          token,
-          "Content-Type": "multipart/form-data",
-        },
+      const res = await axios.put(
+        `${backendUrl}/api/user/update-profile`,
+        formData,
+        {
+          headers: {
+            token,
+          },
+        }
+      );
+
+      if (res.data.success) {
+        setUser(res.data.user);
+        setPreview("");
+        toast.success("Profile photo removed");
       }
-    );
-
-    if (res.data.success) {
-      setUser(res.data.user);
-      setPreview("");
-      toast.success("Profile photo removed");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove photo");
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to remove photo");
-  }
-};
-
+  };
 
   /* ---------------- UPDATE PROFILE ---------------- */
   const updateProfile = async () => {
@@ -102,7 +99,6 @@ const removePhoto = async () => {
         {
           headers: {
             token,
-            "Content-Type": "multipart/form-data",
           },
         }
       );
@@ -118,6 +114,7 @@ const removePhoto = async () => {
         toast.success("Profile updated successfully");
       }
     } catch (err) {
+      console.error(err);
       toast.error("Profile update failed");
     } finally {
       setLoading(false);
