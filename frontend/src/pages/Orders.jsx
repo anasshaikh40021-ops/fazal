@@ -5,10 +5,12 @@ import axios from "axios";
 
 const Orders = () => {
   const { backendUrl, token, currency } = useContext(ShopContext);
-  const [orderData, setorderData] = useState([]);
+
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const loadOrderData = async () => {
+  /* ================= LOAD USER ORDERS ================= */
+  const loadOrders = async () => {
     try {
       if (!token) return;
 
@@ -21,21 +23,8 @@ const Orders = () => {
       );
 
       if (response.data.success) {
-        let allOrdersItem = [];
-
-        response.data.orders.forEach((order) => {
-          order.items.forEach((item) => {
-            allOrdersItem.push({
-              ...item,
-              status: order.status,
-              payment: order.payment,
-              paymentMethod: order.paymentMethod,
-              date: order.date,
-            });
-          });
-        });
-
-        setorderData(allOrdersItem.reverse());
+        // Backend already sorts by latest first
+        setOrders(response.data.orders);
       }
 
       setLoading(false);
@@ -46,94 +35,115 @@ const Orders = () => {
   };
 
   useEffect(() => {
-    if (token) loadOrderData();
+    if (token) loadOrders();
   }, [token]);
 
-  if (loading) return <p className="p-4">Loading orders...</p>;
-  if (!orderData.length) return <p className="p-4">No orders found.</p>;
+  if (loading)
+    return <p className="p-6 text-gray-500">Loading orders...</p>;
+
+  if (!orders.length)
+    return <p className="p-6 text-gray-500">No orders found.</p>;
 
   return (
-    <div className="border-t pt-16">
-      <div className="text-2xl">
+    <div className="border-t pt-12 px-4 min-h-[80vh]">
+      <div className="text-2xl mb-8">
         <Title text1={"MY"} text2={"ORDERS"} />
       </div>
 
-      <div>
-        {orderData.map((item, index) => {
-          /* ================= UI STATUS TEXT ================= */
-          let statusText = item.status;
-          let paymentText = item.paymentMethod;
+      <div className="space-y-8">
+        {orders.map((order) => {
+          /* ================= PAYMENT TEXT ================= */
+          let paymentText = "";
+          let statusColor = "bg-yellow-500";
 
-          if (item.paymentMethod === "RAZORPAY") {
-            if (item.payment) {
-              statusText = "Order Placed Successfully";
-              paymentText = "Razorpay Payment Successful";
-            } else {
-              statusText = "Payment Pending";
-              paymentText = "Razorpay Payment Pending";
-            }
+          if (order.paymentMethod === "Razorpay") {
+            paymentText = order.payment
+              ? "Razorpay Payment Successful"
+              : "Razorpay Payment Pending";
+          } else {
+            paymentText = "Cash on Delivery";
+          }
+
+          /* ================= STATUS COLOR ================= */
+          if (order.status === "Delivered") {
+            statusColor = "bg-green-500";
+          } else if (order.status === "Cancelled") {
+            statusColor = "bg-red-500";
+          } else if (order.status === "Order Placed") {
+            statusColor = "bg-blue-500";
           }
 
           return (
             <div
-              key={index}
-              className="py-4 border-t border-b text-gray-700 flex flex-col md:flex-row md:items-center gap-4"
+              key={order._id}
+              className="border rounded-xl p-5 shadow-sm bg-white"
             >
-              {/* LEFT */}
-              <div className="flex items-start gap-6 text-sm flex-1">
-                <img
-                  className="w-16 sm:w-20"
-                  src={item.image?.[0] || "/placeholder.png"}
-                  alt={item.name}
-                />
-
+              {/* ================= ORDER HEADER ================= */}
+              <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-2">
                 <div>
-                  <p className="sm:text-base font-medium">{item.name}</p>
-
-                  <div className="flex items-center gap-3 mt-2 text-base text-gray-700">
-                    <p>
-                      {currency}
-                      {item.price}
-                    </p>
-                    <p>Quantity: {item.quantity || 1}</p>
-                    <p>Size: {item.size || "M"}</p>
-                  </div>
-
-                  <p className="mt-1">
-                    Date:{" "}
-                    <span className="text-gray-400">
-                      {item.date
-                        ? new Date(item.date).toLocaleDateString()
-                        : "-"}
-                    </span>
+                  <p className="text-sm text-gray-500">
+                    Order Date:{" "}
+                    {new Date(order.date).toLocaleDateString()}
                   </p>
+                  <p className="text-sm text-gray-500">
+                    Payment: {paymentText}
+                  </p>
+                </div>
 
-                  <p className="mt-1">
-                    Payment:{" "}
-                    <span className="text-gray-400">{paymentText}</span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-3 h-3 rounded-full ${statusColor}`}
+                  ></span>
+                  <p className="text-sm font-medium">
+                    {order.status}
                   </p>
                 </div>
               </div>
 
-              {/* RIGHT */}
-              <div className="md:w-1/2 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`min-w-2 h-2 rounded-full ${
-                      item.payment
-                        ? "bg-green-500"
-                        : "bg-yellow-500"
-                    }`}
-                  ></span>
-                  <p className="text-sm md:text-base">{statusText}</p>
-                </div>
+              {/* ================= ORDER ITEMS ================= */}
+              <div className="space-y-5">
+                {order.items.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex gap-4 items-start border-t pt-4"
+                  >
+                    {/* PRODUCT IMAGE */}
+                    <img
+                      className="w-20 h-20 object-cover rounded-lg border"
+                      src={
+                        item.image && item.image.startsWith("http")
+                          ? item.image
+                          : item.image
+                      }
+                      alt={item.name}
+                    />
 
-                <button
-                  onClick={loadOrderData}
-                  className="border px-4 py-2 text-sm font-medium rounded-sm"
-                >
-                  Track Order
-                </button>
+                    {/* PRODUCT DETAILS */}
+                    <div className="flex-1">
+                      <p className="font-medium text-base">
+                        {item.name}
+                      </p>
+
+                      <div className="text-sm text-gray-600 mt-2 flex flex-wrap gap-4">
+                        <p>
+                          {currency}
+                          {item.price}
+                        </p>
+                        <p>Qty: {item.quantity}</p>
+                        <p>Size: {item.size}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ================= TOTAL ================= */}
+              <div className="border-t mt-5 pt-4 flex justify-between items-center">
+                <p className="font-medium">Total Amount</p>
+                <p className="font-semibold text-lg">
+                  {currency}
+                  {order.amount}
+                </p>
               </div>
             </div>
           );

@@ -16,6 +16,8 @@ import { ToastContainer } from 'react-toastify'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Profile from "./pages/Profile";
+import Address from "./pages/Address";
+
 
 
 const App = () => {
@@ -46,6 +48,8 @@ const App = () => {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/address" element={<Address />} />
+
 
       </Routes>
 

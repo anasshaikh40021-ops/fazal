@@ -1,13 +1,12 @@
-import React, { useContext, useEffect, useState } from 'react';
-import Title from '../components/Title';
-import CartTotal from '../components/CartTotal';
-import { ShopContext } from '../context/ShopContext';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useContext, useEffect, useState } from "react";
+import Title from "../components/Title";
+import CartTotal from "../components/CartTotal";
+import { ShopContext } from "../context/ShopContext";
+import axios from "axios";
+import { toast } from "react-toastify";
 
 const PlaceOrder = () => {
-
-  const [method, setMethod] = useState('cod');
+  const [method, setMethod] = useState("cod");
 
   const {
     navigate,
@@ -17,22 +16,24 @@ const PlaceOrder = () => {
     setCartItems,
     getCartAmount,
     delivery_fee,
-    products
+    products,
+    user,
   } = useContext(ShopContext);
 
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    street: '',
-    city: '',
-    state: '',
-    zipcode: '',
-    country: '',
-    phone: ''
+    country: "India",
+    fullName: "",
+    phone: "",
+    pincode: "",
+    flat: "",
+    area: "",
+    landmark: "",
+    city: "",
+    state: "",
+    makeDefault: false,
   });
 
-  /* 🔒 Protect page if cart empty */
+  /* ================= PROTECT EMPTY CART ================= */
   useEffect(() => {
     let hasItems = false;
 
@@ -42,33 +43,35 @@ const PlaceOrder = () => {
       }
     }
 
-    if (!hasItems) navigate('/cart');
+    if (!hasItems) navigate("/cart");
   }, []);
 
   const onChangeHandler = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value, type, checked } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
-  /* =========================
-     ✅ FIXED BUILD ORDER ITEMS
-     BACKEND NEEDS: itemId
-  ========================== */
+  /* ================= BUILD ORDER ITEMS ================= */
   const buildOrderItems = () => {
     let orderItems = [];
 
     for (const p in cartItems) {
       for (const s in cartItems[p]) {
         if (cartItems[p][s] > 0) {
-          const product = products.find(pr => pr._id === p);
+          const product = products.find((pr) => pr._id === p);
 
           if (product) {
             orderItems.push({
-              itemId: product._id,   // ✅ REQUIRED BY BACKEND
+              itemId: product._id,
               size: s,
               quantity: cartItems[p][s],
               name: product.name,
               price: product.price,
-              image: product.image
+              image: product.image?.[0] || product.image,
             });
           }
         }
@@ -78,6 +81,7 @@ const PlaceOrder = () => {
     return orderItems;
   };
 
+  /* ================= SUBMIT ORDER ================= */
   const onSubmitHandler = async (e) => {
     e.preventDefault();
 
@@ -86,20 +90,30 @@ const PlaceOrder = () => {
 
       if (orderItems.length === 0) {
         toast.error("Your cart is empty");
-        navigate('/cart');
+        navigate("/cart");
         return;
       }
 
+      // 🔥 Map Amazon-style fields to backend format
+      const addressObject = {
+        name: formData.fullName,
+        address: `${formData.flat}, ${formData.area}, ${formData.city}, ${formData.state}`,
+        pincode: formData.pincode,
+        phone: formData.phone,
+        country: formData.country,
+        landmark: formData.landmark,
+      };
+
       const orderData = {
-        address: formData,
+        address: addressObject,
         items: orderItems,
-        amount: getCartAmount() + delivery_fee
+        amount: getCartAmount() + delivery_fee,
       };
 
       /* ================= COD ================= */
-      if (method === 'cod') {
+      if (method === "cod") {
         const res = await axios.post(
-          backendUrl + '/api/order/place',
+          backendUrl + "/api/order/place",
           orderData,
           { headers: { token } }
         );
@@ -107,24 +121,22 @@ const PlaceOrder = () => {
         if (res.data.success) {
           toast.success("Order placed successfully");
           setCartItems({});
-          navigate('/orders');
+          navigate("/orders");
         } else {
           toast.error(res.data.message);
         }
       }
 
-      /* ============ RAZORPAY ============ */
-      if (method === 'razorpay') {
-
+      /* ================= RAZORPAY ================= */
+      if (method === "razorpay") {
         const { data } = await axios.post(
-          backendUrl + '/api/order/razorpay',
+          backendUrl + "/api/order/razorpay",
           orderData,
           { headers: { token } }
         );
 
         if (!data.success) {
           toast.error("Payment initiation failed");
-          navigate('/cart');
           return;
         }
 
@@ -135,114 +147,176 @@ const PlaceOrder = () => {
           name: "Fazal Shop",
           description: "Order Payment",
           order_id: data.orderId,
-
           handler: async (response) => {
-            try {
-              const verifyRes = await axios.post(
-                backendUrl + '/api/order/verify-razorpay',
-                response,
-                { headers: { token } }
-              );
+            const verifyRes = await axios.post(
+              backendUrl + "/api/order/verify-razorpay",
+              response,
+              { headers: { token } }
+            );
 
-              if (verifyRes.data.success) {
-                toast.success("Razorpay payment successful ✅");
-                setCartItems({});
-                navigate('/orders');
-              } else {
-                toast.error("Payment verification failed");
-                navigate('/cart');
-              }
-
-            } catch (err) {
-              toast.error("Payment failed");
-              navigate('/cart');
+            if (verifyRes.data.success) {
+              toast.success("Payment successful ✅");
+              setCartItems({});
+              navigate("/orders");
+            } else {
+              toast.error("Payment verification failed");
             }
           },
-
-          modal: {
-            ondismiss: function () {
-              toast.error("Payment cancelled");
-              navigate('/cart');
-            }
-          },
-
           prefill: {
-            email: formData.email,
-            contact: formData.phone
+            contact: formData.phone,
           },
-
-          theme: { color: "#000000" }
+          theme: { color: "#000000" },
         };
 
         const rzp = new window.Razorpay(options);
         rzp.open();
       }
-
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || "Order failed");
-      navigate('/cart');
     }
   };
 
   return (
     <form
       onSubmit={onSubmitHandler}
-      className='flex flex-col sm:flex-row justify-between gap-4 pt-5 sm:pt-14 min-h-[80vh] border-t'
+      className="flex flex-col lg:flex-row gap-10 pt-10 border-t px-4"
     >
-
-      {/* DELIVERY INFO */}
-      <div className='flex flex-col gap-4 w-full sm:max-w-[480px]'>
-
-        <div className='text-xl sm:text-2xl my-3'>
-          <Title text1={'DELIVERY'} text2={'INFORMATION'} />
+      {/* ================= DELIVERY INFO ================= */}
+      <div className="flex flex-col gap-4 w-full lg:max-w-[500px]">
+        <div className="text-xl mb-4">
+          <Title text1={"DELIVERY"} text2={"ADDRESS"} />
         </div>
 
-        <div className='flex gap-3'>
-          <input required name='firstName' value={formData.firstName} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='First name' />
-          <input required name='lastName' value={formData.lastName} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='Last name' />
+        <select
+          name="country"
+          value={formData.country}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+        >
+          <option value="India">India</option>
+        </select>
+
+        <input
+          required
+          name="fullName"
+          value={formData.fullName}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Full Name (First and Last name)"
+        />
+
+        <input
+          required
+          name="phone"
+          value={formData.phone}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Mobile Number"
+        />
+
+        <input
+          required
+          name="pincode"
+          value={formData.pincode}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Pincode"
+        />
+
+        <input
+          required
+          name="flat"
+          value={formData.flat}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Flat, House no., Building, Company, Apartment"
+        />
+
+        <input
+          required
+          name="area"
+          value={formData.area}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Area, Street, Sector, Village"
+        />
+
+        <input
+          name="landmark"
+          value={formData.landmark}
+          onChange={onChangeHandler}
+          className="border px-3 py-2 w-full"
+          placeholder="Landmark (Optional)"
+        />
+
+        <div className="flex gap-3">
+          <input
+            required
+            name="city"
+            value={formData.city}
+            onChange={onChangeHandler}
+            className="border px-3 py-2 w-full"
+            placeholder="Town / City"
+          />
+
+          <input
+            required
+            name="state"
+            value={formData.state}
+            onChange={onChangeHandler}
+            className="border px-3 py-2 w-full"
+            placeholder="State"
+          />
         </div>
 
-        <input required name='email' value={formData.email} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' type='email' placeholder='Email' />
-        <input required name='street' value={formData.street} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='Street' />
-
-        <div className='flex gap-3'>
-          <input required name='city' value={formData.city} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='City' />
-          <input required name='state' value={formData.state} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='State' />
-        </div>
-
-        <div className='flex gap-3'>
-          <input required name='zipcode' value={formData.zipcode} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' type='number' placeholder='Zipcode' />
-          <input required name='country' value={formData.country} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' placeholder='Country' />
-        </div>
-
-        <input required name='phone' value={formData.phone} onChange={onChangeHandler} className='border px-3 py-1.5 w-full' type='number' placeholder='Phone' />
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="makeDefault"
+            checked={formData.makeDefault}
+            onChange={onChangeHandler}
+          />
+          Make this my default address
+        </label>
       </div>
 
-      {/* CART + PAYMENT */}
-      <div className='mt-8'>
-        <div className='min-w-80'>
-          <CartTotal />
-        </div>
+      {/* ================= PAYMENT SECTION ================= */}
+      <div className="flex-1">
+        <CartTotal />
 
-        <div className='mt-12'>
-          <Title text1={'PAYMENT'} text2={'METHOD'} />
+        <div className="mt-10">
+          <Title text1={"PAYMENT"} text2={"METHOD"} />
 
-          <div className='flex gap-3 flex-col'>
-            <div onClick={() => setMethod('razorpay')} className='flex items-center gap-3 border p-3 cursor-pointer'>
-              <span className={`w-4 h-4 border rounded-full ${method === 'razorpay' ? 'bg-green-500' : ''}`}></span>
-              <p className='text-sm'>UPI / PhonePe / GPay</p>
+          <div className="flex flex-col gap-3 mt-4">
+            <div
+              onClick={() => setMethod("razorpay")}
+              className="border p-3 cursor-pointer flex gap-3 items-center"
+            >
+              <span
+                className={`w-4 h-4 border rounded-full ${
+                  method === "razorpay" ? "bg-green-500" : ""
+                }`}
+              />
+              <p className="text-sm">UPI / PhonePe / GPay</p>
             </div>
 
-            <div onClick={() => setMethod('cod')} className='flex items-center gap-3 border p-3 cursor-pointer'>
-              <span className={`w-4 h-4 border rounded-full ${method === 'cod' ? 'bg-green-500' : ''}`}></span>
-              <p className='text-sm'>Cash on Delivery</p>
+            <div
+              onClick={() => setMethod("cod")}
+              className="border p-3 cursor-pointer flex gap-3 items-center"
+            >
+              <span
+                className={`w-4 h-4 border rounded-full ${
+                  method === "cod" ? "bg-green-500" : ""
+                }`}
+              />
+              <p className="text-sm">Cash on Delivery</p>
             </div>
           </div>
         </div>
 
-        <div className='w-full text-end mt-8'>
-          <button className='bg-black text-white px-16 py-3 text-sm'>
+        <div className="mt-8 text-right">
+          <button className="bg-black text-white px-10 py-3 text-sm">
             PLACE ORDER
           </button>
         </div>
