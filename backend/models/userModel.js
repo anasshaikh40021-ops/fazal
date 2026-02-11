@@ -29,8 +29,14 @@ const userSchema = new mongoose.Schema(
       default: {},
     },
 
-    // 👤 PROFILE IMAGE
+    // 👤 PROFILE IMAGE (URL)
     profileImage: {
+      type: String,
+      default: "",
+    },
+
+    // 👤 PROFILE IMAGE CLOUDINARY PUBLIC ID ✅ REQUIRED
+    profileImagePublicId: {
       type: String,
       default: "",
     },
