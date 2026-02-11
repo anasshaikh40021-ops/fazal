@@ -13,6 +13,7 @@ const Profile = () => {
   const [name, setName] = useState("");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState("");
+  const [removeImage, setRemoveImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -92,9 +93,17 @@ const Profile = () => {
 
     try {
       setLoading(true);
+
       const formData = new FormData();
       formData.append("name", name);
-      if (image) formData.append("image", image);
+
+      if (image) {
+        formData.append("image", image);
+      }
+
+      if (removeImage) {
+        formData.append("removeImage", "true");
+      }
 
       const res = await axios.put(
         `${backendUrl}/api/user/update-profile`,
@@ -105,7 +114,11 @@ const Profile = () => {
       if (res.data.success) {
         setUser(res.data.user);
         setImage(null);
+        setRemoveImage(false);
+        setPreview(res.data.user.profileImage || "");
         toast.success("Profile updated");
+      } else {
+        toast.error(res.data.message);
       }
     } catch {
       toast.error("Profile update failed");
@@ -216,19 +229,40 @@ const Profile = () => {
                   className="w-24 h-24 rounded-full object-cover border"
                   alt="profile"
                 />
+
                 <input
                   type="file"
                   hidden
                   id="upload"
                   accept="image/*"
-                  onChange={(e) => setImage(e.target.files[0])}
+                  onChange={(e) => {
+                    setImage(e.target.files[0]);
+                    setRemoveImage(false);
+                  }}
                 />
-                <label
-                  htmlFor="upload"
-                  className="text-blue-600 text-xs cursor-pointer"
-                >
-                  Change Photo
-                </label>
+
+                <div className="flex gap-3 mt-2">
+                  <label
+                    htmlFor="upload"
+                    className="px-4 py-1.5 bg-black text-white text-xs rounded cursor-pointer hover:opacity-90 transition"
+                  >
+                    Change
+                  </label>
+
+                  {preview && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImage(null);
+                        setPreview("");
+                        setRemoveImage(true);
+                      }}
+                      className="px-4 py-1.5 border border-red-500 text-red-500 text-xs rounded hover:bg-red-50 transition"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-6">
@@ -254,7 +288,7 @@ const Profile = () => {
                 disabled={loading}
                 className="w-full bg-black text-white py-2 rounded mt-6 text-sm"
               >
-                Save Changes
+                {loading ? "Saving..." : "Save Changes"}
               </button>
             </>
           )}
@@ -271,9 +305,7 @@ const Profile = () => {
                   >
                     <p>Amount: ₹{order.amount}</p>
                     <p>Status: {order.status}</p>
-                    <p>
-                      Date: {new Date(order.date).toLocaleDateString()}
-                    </p>
+                    <p>Date: {new Date(order.date).toLocaleDateString()}</p>
                   </div>
                 ))
               )}

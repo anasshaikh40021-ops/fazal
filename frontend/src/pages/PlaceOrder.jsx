@@ -7,6 +7,8 @@ import { toast } from "react-toastify";
 
 const PlaceOrder = () => {
   const [method, setMethod] = useState("cod");
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressIndex, setSelectedAddressIndex] = useState(null);
 
   const {
     navigate,
@@ -17,21 +19,37 @@ const PlaceOrder = () => {
     getCartAmount,
     delivery_fee,
     products,
-    user,
   } = useContext(ShopContext);
 
   const [formData, setFormData] = useState({
-    country: "India",
     fullName: "",
     phone: "",
     pincode: "",
     flat: "",
     area: "",
-    landmark: "",
     city: "",
     state: "",
-    makeDefault: false,
   });
+
+  /* ================= LOAD SAVED ADDRESSES ================= */
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      try {
+        const res = await axios.get(
+          backendUrl + "/api/user/profile",
+          { headers: { token } }
+        );
+
+        if (res.data.success && res.data.user.addresses) {
+          setSavedAddresses(res.data.user.addresses);
+        }
+      } catch (err) {
+        console.log("Failed to load addresses");
+      }
+    };
+
+    if (token) fetchAddresses();
+  }, [token, backendUrl]);
 
   /* ================= PROTECT EMPTY CART ================= */
   useEffect(() => {
@@ -44,34 +62,52 @@ const PlaceOrder = () => {
     }
 
     if (!hasItems) navigate("/cart");
-  }, []);
+  }, [cartItems, navigate]);
 
   const onChangeHandler = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
 
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: value,
     }));
+  };
+
+  /* ================= SELECT SAVED ADDRESS ================= */
+  const handleSelectAddress = (index) => {
+    const addr = savedAddresses[index];
+
+    setSelectedAddressIndex(index);
+
+    const splitAddress = addr.address.split(",");
+
+    setFormData({
+      fullName: addr.name,
+      phone: addr.phone,
+      pincode: addr.pincode,
+      flat: splitAddress[0] || "",
+      area: splitAddress[1] || "",
+      city: addr.city,
+      state: addr.state,
+    });
   };
 
   /* ================= BUILD ORDER ITEMS ================= */
   const buildOrderItems = () => {
     let orderItems = [];
 
-    for (const p in cartItems) {
-      for (const s in cartItems[p]) {
-        if (cartItems[p][s] > 0) {
-          const product = products.find((pr) => pr._id === p);
+    for (const productId in cartItems) {
+      for (const size in cartItems[productId]) {
+        const quantity = cartItems[productId][size];
+
+        if (quantity > 0) {
+          const product = products.find((p) => p._id === productId);
 
           if (product) {
             orderItems.push({
               itemId: product._id,
-              size: s,
-              quantity: cartItems[p][s],
-              name: product.name,
-              price: product.price,
-              image: product.image?.[0] || product.image,
+              size: size,
+              quantity: quantity,
             });
           }
         }
@@ -90,18 +126,16 @@ const PlaceOrder = () => {
 
       if (orderItems.length === 0) {
         toast.error("Your cart is empty");
-        navigate("/cart");
         return;
       }
 
-      // 🔥 Map Amazon-style fields to backend format
       const addressObject = {
         name: formData.fullName,
-        address: `${formData.flat}, ${formData.area}, ${formData.city}, ${formData.state}`,
-        pincode: formData.pincode,
         phone: formData.phone,
-        country: formData.country,
-        landmark: formData.landmark,
+        address: `${formData.flat}, ${formData.area}`,
+        city: formData.city,
+        state: formData.state,
+        pincode: formData.pincode,
       };
 
       const orderData = {
@@ -136,7 +170,7 @@ const PlaceOrder = () => {
         );
 
         if (!data.success) {
-          toast.error("Payment initiation failed");
+          toast.error(data.message || "Payment initiation failed");
           return;
         }
 
@@ -148,21 +182,26 @@ const PlaceOrder = () => {
           description: "Order Payment",
           order_id: data.orderId,
           handler: async (response) => {
-            const verifyRes = await axios.post(
-              backendUrl + "/api/order/verify-razorpay",
-              response,
-              { headers: { token } }
-            );
+            try {
+              const verifyRes = await axios.post(
+                backendUrl + "/api/order/verify-razorpay",
+                response,
+                { headers: { token } }
+              );
 
-            if (verifyRes.data.success) {
-              toast.success("Payment successful ✅");
-              setCartItems({});
-              navigate("/orders");
-            } else {
-              toast.error("Payment verification failed");
+              if (verifyRes.data.success) {
+                toast.success("Payment successful");
+                setCartItems({});
+                navigate("/orders");
+              } else {
+                toast.error("Payment verification failed");
+              }
+            } catch (err) {
+              toast.error("Verification failed");
             }
           },
           prefill: {
+            name: formData.fullName,
             contact: formData.phone,
           },
           theme: { color: "#000000" },
@@ -188,97 +227,41 @@ const PlaceOrder = () => {
           <Title text1={"DELIVERY"} text2={"ADDRESS"} />
         </div>
 
-        <select
-          name="country"
-          value={formData.country}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-        >
-          <option value="India">India</option>
-        </select>
+        {/* SAVED ADDRESSES */}
+        {savedAddresses.length > 0 && (
+          <div className="border p-4 rounded mb-4">
+            <p className="font-medium mb-3">Saved Addresses</p>
 
-        <input
-          required
-          name="fullName"
-          value={formData.fullName}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Full Name (First and Last name)"
-        />
+            {savedAddresses.map((addr, index) => (
+              <div
+                key={index}
+                onClick={() => handleSelectAddress(index)}
+                className={`border p-3 mb-2 cursor-pointer ${
+                  selectedAddressIndex === index
+                    ? "border-black bg-gray-100"
+                    : ""
+                }`}
+              >
+                <p className="text-sm font-medium">{addr.name}</p>
+                <p className="text-xs text-gray-600">
+                  {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
+                </p>
+                <p className="text-xs text-gray-600">{addr.phone}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
-        <input
-          required
-          name="phone"
-          value={formData.phone}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Mobile Number"
-        />
-
-        <input
-          required
-          name="pincode"
-          value={formData.pincode}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Pincode"
-        />
-
-        <input
-          required
-          name="flat"
-          value={formData.flat}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Flat, House no., Building, Company, Apartment"
-        />
-
-        <input
-          required
-          name="area"
-          value={formData.area}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Area, Street, Sector, Village"
-        />
-
-        <input
-          name="landmark"
-          value={formData.landmark}
-          onChange={onChangeHandler}
-          className="border px-3 py-2 w-full"
-          placeholder="Landmark (Optional)"
-        />
+        <input required name="fullName" value={formData.fullName} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="Full Name" />
+        <input required name="phone" value={formData.phone} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="Mobile Number" />
+        <input required name="pincode" value={formData.pincode} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="Pincode" />
+        <input required name="flat" value={formData.flat} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="Flat / House No." />
+        <input required name="area" value={formData.area} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="Area / Street" />
 
         <div className="flex gap-3">
-          <input
-            required
-            name="city"
-            value={formData.city}
-            onChange={onChangeHandler}
-            className="border px-3 py-2 w-full"
-            placeholder="Town / City"
-          />
-
-          <input
-            required
-            name="state"
-            value={formData.state}
-            onChange={onChangeHandler}
-            className="border px-3 py-2 w-full"
-            placeholder="State"
-          />
+          <input required name="city" value={formData.city} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="City" />
+          <input required name="state" value={formData.state} onChange={onChangeHandler} className="border px-3 py-2 w-full" placeholder="State" />
         </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="makeDefault"
-            checked={formData.makeDefault}
-            onChange={onChangeHandler}
-          />
-          Make this my default address
-        </label>
       </div>
 
       {/* ================= PAYMENT SECTION ================= */}
@@ -289,27 +272,13 @@ const PlaceOrder = () => {
           <Title text1={"PAYMENT"} text2={"METHOD"} />
 
           <div className="flex flex-col gap-3 mt-4">
-            <div
-              onClick={() => setMethod("razorpay")}
-              className="border p-3 cursor-pointer flex gap-3 items-center"
-            >
-              <span
-                className={`w-4 h-4 border rounded-full ${
-                  method === "razorpay" ? "bg-green-500" : ""
-                }`}
-              />
+            <div onClick={() => setMethod("razorpay")} className="border p-3 cursor-pointer flex gap-3 items-center">
+              <span className={`w-4 h-4 border rounded-full ${method === "razorpay" ? "bg-green-500" : ""}`} />
               <p className="text-sm">UPI / PhonePe / GPay</p>
             </div>
 
-            <div
-              onClick={() => setMethod("cod")}
-              className="border p-3 cursor-pointer flex gap-3 items-center"
-            >
-              <span
-                className={`w-4 h-4 border rounded-full ${
-                  method === "cod" ? "bg-green-500" : ""
-                }`}
-              />
+            <div onClick={() => setMethod("cod")} className="border p-3 cursor-pointer flex gap-3 items-center">
+              <span className={`w-4 h-4 border rounded-full ${method === "cod" ? "bg-green-500" : ""}`} />
               <p className="text-sm">Cash on Delivery</p>
             </div>
           </div>
