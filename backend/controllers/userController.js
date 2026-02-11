@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import validator from "validator";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import fs from "fs";
+import cloudinary from "../config/cloudinary.js";
 
 /* =====================
    TOKEN
@@ -97,17 +97,14 @@ const getUserProfile = async (req, res) => {
       return res.json({ success: false, message: "User not found" });
     }
 
-    res.json({
-      success: true,
-      user,
-    });
+    res.json({ success: true, user });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
 
 /* =====================
-   UPDATE PROFILE ✅ FIXED PROPERLY
+   UPDATE PROFILE (VERCEL SAFE) ✅
 ===================== */
 const updateUserProfile = async (req, res) => {
   try {
@@ -116,40 +113,40 @@ const updateUserProfile = async (req, res) => {
       return res.json({ success: false, message: "User not found" });
     }
 
-    // Update name
     if (req.body.name) {
       user.name = req.body.name;
     }
 
-    /*
-      IMPORTANT:
-      removeImage MUST override everything
-    */
+    // Remove image
     if (req.body.removeImage === "true") {
-      // delete old file (optional but correct)
-      if (user.profileImage && fs.existsSync(user.profileImage)) {
-        fs.unlinkSync(user.profileImage);
+      if (user.profileImage) {
+        await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
       user.profileImage = "";
+      user.profileImagePublicId = "";
     }
 
     // Upload new image
     if (req.file) {
-      // delete old image if exists
-      if (user.profileImage && fs.existsSync(user.profileImage)) {
-        fs.unlinkSync(user.profileImage);
+      // delete old
+      if (user.profileImagePublicId) {
+        await cloudinary.uploader.destroy(user.profileImagePublicId);
       }
-      user.profileImage = req.file.path;
+
+      const result = await cloudinary.uploader.upload(
+        `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`,
+        { folder: "profiles" }
+      );
+
+      user.profileImage = result.secure_url;
+      user.profileImagePublicId = result.public_id;
     }
 
     await user.save();
 
     const updatedUser = await User.findById(user._id).select("-password");
 
-    res.json({
-      success: true,
-      user: updatedUser,
-    });
+    res.json({ success: true, user: updatedUser });
   } catch (error) {
     console.error("UPDATE PROFILE ERROR:", error);
     res.json({ success: false, message: error.message });
