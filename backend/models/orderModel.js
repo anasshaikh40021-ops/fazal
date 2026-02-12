@@ -25,7 +25,7 @@ const orderItemSchema = new mongoose.Schema({
   },
 
   size: {
-    type: String,            // ✅ ADD THIS (VERY IMPORTANT)
+    type: String, // ✅ already added
     required: true,
   },
 
@@ -100,6 +100,20 @@ const orderSchema = new mongoose.Schema(
 
     razorpayPaymentId: {
       type: String,
+    },
+
+    /* =========================
+       ✅ NEW CANCEL FIELDS
+    ========================= */
+
+    cancelReason: {
+      type: String,
+      default: "",
+    },
+
+    cancelledAt: {
+      type: Date,
+      default: null,
     },
 
     date: {

@@ -115,6 +115,105 @@ const sendOrderConfirmationEmail = async (userId, order) => {
 };
 
 /* =======================
+   SEND CANCELLATION EMAIL
+======================= */
+const sendOrderCancellationEmail = async (userId, order) => {
+  const user = await userModel.findById(userId);
+  if (!user || !user.email) return;
+
+  await sendEmail({
+    email: user.email,
+    subject: "Order Cancelled - Fazal Store",
+    title: "Your Order Has Been Cancelled ❌",
+    message: "Your order has been successfully cancelled.",
+    order,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+  });
+};
+
+/* =======================
+   CANCEL ORDER (USER)
+======================= */
+const cancelOrder = async (req, res) => {
+  try {
+    const { orderId, reason } = req.body;
+
+    if (!reason || reason.trim() === "") {
+      return res.json({
+        success: false,
+        message: "Cancellation reason is required",
+      });
+    }
+
+    const order = await orderModel.findById(orderId);
+
+    if (!order) {
+      return res.json({ success: false, message: "Order not found" });
+    }
+
+    // Check ownership
+    if (order.userId.toString() !== req.user.id) {
+      return res.json({ success: false, message: "Unauthorized" });
+    }
+
+    // Prevent double cancel
+    if (order.status === "Cancelled") {
+      return res.json({
+        success: false,
+        message: "Order already cancelled",
+      });
+    }
+
+    // Prevent cancelling delivered order
+    if (order.status === "Delivered") {
+      return res.json({
+        success: false,
+        message: "Delivered order cannot be cancelled",
+      });
+    }
+
+    /* =====================
+       RESTORE STOCK
+    ====================== */
+    for (const item of order.items) {
+      await productModel.findOneAndUpdate(
+        {
+          _id: item.productId,
+          "sizes.size": item.size,
+        },
+        {
+          $inc: { "sizes.$.stock": item.quantity },
+        }
+      );
+    }
+
+    /* =====================
+       UPDATE ORDER
+    ====================== */
+    order.status = "Cancelled";
+    order.cancelReason = reason;
+    order.cancelledAt = new Date();
+
+    await order.save();
+
+    /* =====================
+       SEND EMAIL
+    ====================== */
+    await sendOrderCancellationEmail(order.userId, order);
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+/* =======================
    PLACE ORDER - COD
 ======================= */
 const placeOrder = async (req, res) => {
@@ -142,12 +241,10 @@ const placeOrder = async (req, res) => {
 
     await userModel.findByIdAndUpdate(req.user.id, { cartData: {} });
     await saveAddressToUser(req.user.id, address);
-
     await sendOrderConfirmationEmail(req.user.id, newOrder);
 
     res.json({ success: true, message: "Order placed successfully" });
   } catch (error) {
-    console.log(error);
     res.json({ success: false, message: error.message });
   }
 };
@@ -296,4 +393,5 @@ export {
   allOrders,
   userOrders,
   updateStatus,
+  cancelOrder,
 };
