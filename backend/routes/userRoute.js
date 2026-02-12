@@ -1,5 +1,5 @@
 import express from "express";
-import upload from "../middleware/multer.js";
+import { uploadMemory } from "../middleware/multer.js";
 import authUser from "../middleware/auth.js";
 
 import {
@@ -34,7 +34,7 @@ userRouter.get("/profile", authUser, getUserProfile);
 userRouter.put(
   "/update-profile",
   authUser,
-  upload.single("image"),
+  uploadMemory.single("image"),
   updateUserProfile
 );
 
