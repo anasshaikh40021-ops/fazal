@@ -35,7 +35,8 @@ const Address = () => {
     loadAddresses();
   }, [token]);
 
-  if (loading) return <p className="p-6">Loading addresses...</p>;
+  if (loading)
+    return <p className="p-6 text-gray-500">Loading addresses...</p>;
 
   return (
     <div className="border-t pt-12 px-4 min-h-[80vh]">
@@ -46,24 +47,26 @@ const Address = () => {
       {addresses.length === 0 ? (
         <p className="text-gray-500">No saved addresses found.</p>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {addresses.map((addr, index) => (
             <div
               key={index}
-              className="border p-5 rounded-lg shadow-sm bg-white"
+              className="border rounded-xl p-6 shadow-sm bg-white"
             >
-              {/* FULL NAME */}
-              <p className="font-medium text-base">
-                {addr.name}
-              </p>
+              {/* HEADER */}
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <p className="font-medium text-base">
+                    {addr.name}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {addr.phone}
+                  </p>
+                </div>
+              </div>
 
-              {/* MOBILE */}
-              <p className="text-sm text-gray-600 mt-1">
-                {addr.phone}
-              </p>
-
-              {/* FULL ADDRESS FORMAT */}
-              <div className="text-sm text-gray-600 mt-3 space-y-1">
+              {/* ADDRESS DETAILS */}
+              <div className="text-sm text-gray-700 space-y-1 border-t pt-4">
                 <p>{addr.flat}</p>
                 <p>{addr.area}</p>
 
@@ -75,7 +78,9 @@ const Address = () => {
                   {addr.city}, {addr.state} - {addr.pincode}
                 </p>
 
-                <p>{addr.country}</p>
+                {addr.country && (
+                  <p>{addr.country}</p>
+                )}
               </div>
             </div>
           ))}

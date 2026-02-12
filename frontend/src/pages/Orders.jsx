@@ -23,7 +23,6 @@ const Orders = () => {
       );
 
       if (response.data.success) {
-        // Backend already sorts by latest first
         setOrders(response.data.orders);
       }
 
@@ -100,6 +99,23 @@ const Orders = () => {
                 </div>
               </div>
 
+              {/* ================= DELIVERY ADDRESS ================= */}
+              {order.address && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-4 text-sm">
+                  <p className="font-medium">{order.address.name}</p>
+                  <p className="text-gray-600">
+                    {order.address.address}
+                  </p>
+                  <p className="text-gray-600">
+                    {order.address.city}, {order.address.state} -{" "}
+                    {order.address.pincode}
+                  </p>
+                  <p className="text-gray-600">
+                    {order.address.phone}
+                  </p>
+                </div>
+              )}
+
               {/* ================= ORDER ITEMS ================= */}
               <div className="space-y-5">
                 {order.items.map((item, index) => (
@@ -107,18 +123,12 @@ const Orders = () => {
                     key={index}
                     className="flex gap-4 items-start border-t pt-4"
                   >
-                    {/* PRODUCT IMAGE */}
                     <img
                       className="w-20 h-20 object-cover rounded-lg border"
-                      src={
-                        item.image && item.image.startsWith("http")
-                          ? item.image
-                          : item.image
-                      }
+                      src={item.image}
                       alt={item.name}
                     />
 
-                    {/* PRODUCT DETAILS */}
                     <div className="flex-1">
                       <p className="font-medium text-base">
                         {item.name}
