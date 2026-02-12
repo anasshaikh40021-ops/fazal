@@ -17,6 +17,9 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
 
+  // 🔥 CACHE FIX (only addition)
+  const [imageVersion, setImageVersion] = useState(Date.now());
+
   // Orders
   const [orders, setOrders] = useState([]);
 
@@ -52,6 +55,9 @@ const Profile = () => {
     setName(user.name || "");
     setPreview(user.profileImage || "");
     setAddresses(user.addresses || []);
+
+    // 🔥 refresh image version when user updates
+    setImageVersion(Date.now());
   }, [user]);
 
   /* ---------------- IMAGE PREVIEW ---------------- */
@@ -116,6 +122,10 @@ const Profile = () => {
         setImage(null);
         setRemoveImage(false);
         setPreview(res.data.user.profileImage || "");
+
+        // 🔥 force image refresh
+        setImageVersion(Date.now());
+
         toast.success("Profile updated");
       } else {
         toast.error(res.data.message);
@@ -223,8 +233,9 @@ const Profile = () => {
               <div className="flex flex-col items-center gap-4">
                 <img
                   src={
-                    preview ||
-                    "https://ui-avatars.com/api/?name=User&background=random"
+                    preview
+                      ? `${preview}?v=${imageVersion}`
+                      : "https://ui-avatars.com/api/?name=User&background=random"
                   }
                   className="w-24 h-24 rounded-full object-cover border"
                   alt="profile"
