@@ -6,39 +6,38 @@ const Hero = () => {
   const { products, currency } = useContext(ShopContext)
   const navigate = useNavigate()
 
-  const bestSellers = useMemo(
-    () => products.filter((p) => p.bestseller),
+  // ✅ ONLY banner products
+  const bannerProducts = useMemo(
+    () => products.filter((p) => p.showOnBanner),
     [products]
   )
 
   const [index, setIndex] = useState(0)
 
-  // Faster rotation (1.5s)
   useEffect(() => {
-    if (bestSellers.length === 0) return
+    if (bannerProducts.length === 0) return
 
     const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % bestSellers.length)
-    }, 1500)
+      setIndex((prev) => (prev + 1) % bannerProducts.length)
+    }, 900)
 
     return () => clearInterval(interval)
-  }, [bestSellers])
+  }, [bannerProducts])
 
-  if (bestSellers.length === 0) return null
+  if (bannerProducts.length === 0) return null
 
-  const product = bestSellers[index]
+  const product = bannerProducts[index]
 
   return (
     <div className="flex flex-col sm:flex-row border border-gray-400 overflow-hidden h-[380px] sm:h-[420px]">
 
-      {/* LEFT */}
       <div className="w-full sm:w-1/2 flex items-center justify-center px-6">
         <div className="text-[#414141] max-w-sm transition-all duration-500">
 
           <div className="flex items-center gap-2 mb-2">
             <p className="w-7 h-[2px] bg-[#414141]" />
             <p className="font-medium text-sm">
-              BESTSELLER
+              FEATURED
             </p>
           </div>
 
@@ -48,10 +47,6 @@ const Hero = () => {
 
           <p className="text-lg font-semibold mt-2">
             {currency}{product.price}
-          </p>
-
-          <p className="text-orange-600 font-medium mt-1 text-sm">
-            Hot Pick 🔥
           </p>
 
           <div
@@ -67,7 +62,6 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* RIGHT IMAGE */}
       <div
         onClick={() => navigate(`/product/${product._id}`)}
         className="w-full sm:w-1/2 cursor-pointer"
@@ -76,10 +70,7 @@ const Hero = () => {
           key={product._id}
           src={product.image[0]}
           alt={product.name}
-          className="
-            w-full h-full object-cover
-            transition-all duration-500 ease-in-out
-          "
+          className="w-full h-full object-cover transition-all duration-500 ease-in-out"
         />
       </div>
 

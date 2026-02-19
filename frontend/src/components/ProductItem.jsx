@@ -28,30 +28,29 @@ const ProductItem = ({ id, image, name, price }) => {
   }
 
   const handleMouseLeave = () => {
-    setIsPreviewing(false)
-    setCurrentImageIndex(0)
+    if (window.innerWidth > 768) {
+      setIsPreviewing(false)
+      setCurrentImageIndex(0)
+    }
   }
 
   const handleClick = () => {
-    // Mobile logic
-    if (window.innerWidth <= 768 && image.length > 1 && !isPreviewing) {
-      setIsPreviewing(true)
-
-      const interval = setInterval(() => {
-        setCurrentImageIndex(prev => (prev + 1) % image.length)
-      }, 700)
-
-      setTimeout(() => {
-        clearInterval(interval)
-        setIsPreviewing(false)
-        setCurrentImageIndex(0)
-      }, 2000)
-
-      return
-    }
-
-    // Second tap or desktop → navigate
+    // Always navigate on click (both desktop & mobile)
     navigate(`/product/${id}`)
+  }
+
+  /* ================= MOBILE IMAGE SWIPE ================= */
+  const handleTouchStart = () => {
+    if (window.innerWidth <= 768 && image.length > 1) {
+      setIsPreviewing(true)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (window.innerWidth <= 768 && image.length > 1) {
+      setIsPreviewing(false)
+      setCurrentImageIndex(0)
+    }
   }
 
   return (
@@ -60,6 +59,8 @@ const ProductItem = ({ id, image, name, price }) => {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="overflow-hidden">
         <img
