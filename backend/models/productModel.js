@@ -44,7 +44,7 @@ const productSchema = new mongoose.Schema(
     },
 
     image: {
-      type: [String],   // ✅ array of image URLs
+      type: [String],
       required: true,
     },
 
@@ -60,11 +60,15 @@ const productSchema = new mongoose.Schema(
       trim: true,
     },
 
-    /* =====================
-       SIZE-WISE LIVE STOCK
-    ===================== */
+    // ✅ ADD THIS FIELD (MAIN FIX)
+    type: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     sizes: {
-      type: [sizeSchema],   // ✅ [{ size, stock }]
+      type: [sizeSchema],
       required: true,
       default: [],
     },
@@ -74,14 +78,16 @@ const productSchema = new mongoose.Schema(
       default: false,
     },
 
+    showOnBanner: {
+      type: Boolean,
+      default: false,
+    },
+
     date: {
       type: Number,
       required: true,
     },
 
-    /* =====================
-       REVIEWS META
-    ===================== */
     rating: {
       type: Number,
       default: 0,
@@ -100,9 +106,6 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-/* ======================================================
-   MODEL EXPORT (SAFE FOR HOT RELOAD)
-====================================================== */
 const productModel =
   mongoose.models.product || mongoose.model("product", productSchema);
 

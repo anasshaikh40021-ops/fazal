@@ -12,9 +12,19 @@ const addProduct = async (req, res) => {
       price,
       category,
       subCategory,
+      type,              // ✅ ADDED
       sizes,
+      showOnBanner,
       bestseller,
     } = req.body;
+
+    // ---------- VALIDATION ----------
+    if (!name || !description || !price || !category || !subCategory || !type) {
+      return res.json({
+        success: false,
+        message: "All required fields must be filled",
+      });
+    }
 
     // ---------- IMAGES ----------
     const image1 = req.files?.image1?.[0];
@@ -25,7 +35,10 @@ const addProduct = async (req, res) => {
     const images = [image1, image2, image3, image4].filter(Boolean);
 
     if (images.length === 0) {
-      return res.json({ success: false, message: "At least one image is required" });
+      return res.json({
+        success: false,
+        message: "At least one image is required",
+      });
     }
 
     const imagesUrl = await Promise.all(
@@ -37,14 +50,13 @@ const addProduct = async (req, res) => {
       })
     );
 
-    // ---------- SIZES (PER SIZE STOCK) ----------
+    // ---------- SIZES ----------
     let parsedSizes = [];
 
     if (sizes) {
       parsedSizes = typeof sizes === "string" ? JSON.parse(sizes) : sizes;
     }
 
-    // Validate sizes format
     parsedSizes = parsedSizes.map((s) => ({
       size: s.size,
       stock: Number(s.stock) || 0,
@@ -52,13 +64,15 @@ const addProduct = async (req, res) => {
 
     // ---------- PRODUCT DATA ----------
     const productData = {
-      name,
-      description,
-      category,
-      subCategory,
+      name: name.trim(),
+      description: description.trim(),
+      category: category.trim(),
+      subCategory: subCategory.trim(),
+      type: type.trim(),             // ✅ SAVING TYPE
       price: Number(price),
       bestseller: bestseller === "true" || bestseller === true,
-      sizes: parsedSizes,          // ✅ [{ size, stock }]
+      showOnBanner: showOnBanner === "true" || showOnBanner === true,
+      sizes: parsedSizes,
       image: imagesUrl,
       date: Date.now(),
     };
@@ -125,7 +139,10 @@ const removeProduct = async (req, res) => {
       return res.json({ success: false, message: "Product not found" });
     }
 
-    return res.json({ success: true, message: "Product removed successfully" });
+    return res.json({
+      success: true,
+      message: "Product removed successfully",
+    });
 
   } catch (error) {
     console.error("REMOVE PRODUCT ERROR:", error);
@@ -134,7 +151,7 @@ const removeProduct = async (req, res) => {
 };
 
 /* ======================================================
-   UPDATE STOCK (OPTIONAL BUT VERY IMPORTANT)
+   UPDATE STOCK
 ====================================================== */
 const updateProductStock = async (req, res) => {
   try {
@@ -153,7 +170,6 @@ const updateProductStock = async (req, res) => {
     }
 
     sizeObj.stock = Number(stock);
-
     await product.save();
 
     return res.json({
