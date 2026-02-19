@@ -11,10 +11,58 @@ const Add = ({ token }) => {
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [category, setCategory] = useState("Men")
-  const [subCategory, setSubCategory] = useState("Topwear")
+  const [subCategory, setSubCategory] = useState("T-Shirts")
+  const [type, setType] = useState("Regular Fit")
   const [bestseller, setBestseller] = useState(false)
+  const [showOnBanner, setShowOnBanner] = useState(false) // ✅ NEW
 
-  // ✅ SIZE + STOCK (FIXED)
+  const typeOptions = {
+    "T-Shirts": [
+      "Regular Fit",
+      "Oversized",
+      "Drop Shoulder",
+      "Full Sleeves",
+      "Half Sleeves",
+      "Collar",
+      "Graphic Printed",
+      "Solid"
+    ],
+    "Sweatshirts & Hoodies": [
+      "Regular Fit",
+      "Oversized",
+      "Hooded",
+      "Zip-Up",
+      "Printed",
+      "Solid"
+    ],
+    "Shirts": [
+      "Formal Wear",
+      "Party Wear",
+      "Half Sleeves",
+      "Full Sleeves",
+      "Printed",
+      "Casual Wear"
+    ],
+    "Jeans": [
+      "Regular Fit",
+      "Straight Fit",
+      "Baggy",
+      "Straight Baggy",
+      "Mom Fit",
+      "Carrot Fit",
+      "Bootcut",
+      "Joggers",
+      "Cargo"
+    ],
+    "Track Pants": [
+      "Regular Fit",
+      "Slim Fit",
+      "Baggy",
+      "Joggers",
+      "Athleisure"
+    ]
+  }
+
   const [sizes, setSizes] = useState([
     { size: "S", stock: 0 },
     { size: "M", stock: 0 },
@@ -39,7 +87,6 @@ const Add = ({ token }) => {
 
   const onSubmitHandler = async () => {
     try {
-      // ✅ Only send sizes with stock > 0
       const filteredSizes = sizes.filter(s => s.stock > 0)
 
       if (filteredSizes.length === 0) {
@@ -52,9 +99,9 @@ const Add = ({ token }) => {
       formData.append("price", price)
       formData.append("category", category)
       formData.append("subCategory", subCategory)
+      formData.append("type", type)
       formData.append("bestseller", bestseller)
-
-      // ✅ CORRECT FORMAT
+      formData.append("showOnBanner", showOnBanner) // ✅ NEW
       formData.append("sizes", JSON.stringify(filteredSizes))
 
       images.forEach((img, i) => {
@@ -74,11 +121,12 @@ const Add = ({ token }) => {
         setDescription("")
         setPrice("")
         setCategory("Men")
-        setSubCategory("Topwear")
+        setSubCategory("T-Shirts")
+        setType("Regular Fit")
         setBestseller(false)
+        setShowOnBanner(false) // ✅ RESET
         setImages([null, null, null, null, null, null, null])
 
-        // reset stocks
         setSizes([
           { size: "S", stock: 0 },
           { size: "M", stock: 0 },
@@ -98,7 +146,6 @@ const Add = ({ token }) => {
   return (
     <div className="flex flex-col gap-4">
 
-      {/* Images */}
       <div>
         <p className="mb-2">Upload Images</p>
         <div className="flex gap-3">
@@ -133,17 +180,30 @@ const Add = ({ token }) => {
         placeholder="Product description"
       />
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
           <option>Men</option>
-          <option>Women</option>
-          <option>Kids</option>
         </select>
 
-        <select value={subCategory} onChange={(e) => setSubCategory(e.target.value)}>
-          <option>Topwear</option>
-          <option>Bottomwear</option>
-          <option>Winterwear</option>
+        <select
+          value={subCategory}
+          onChange={(e) => {
+            setSubCategory(e.target.value)
+            setType(typeOptions[e.target.value][0])
+          }}
+        >
+          {Object.keys(typeOptions).map(type => (
+            <option key={type}>{type}</option>
+          ))}
+        </select>
+
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+        >
+          {typeOptions[subCategory].map(t => (
+            <option key={t}>{t}</option>
+          ))}
         </select>
 
         <input
@@ -155,7 +215,6 @@ const Add = ({ token }) => {
         />
       </div>
 
-      {/* ✅ SIZE + STOCK UI */}
       <div>
         <p className="mb-2 font-medium">Size Stock</p>
         <div className="flex flex-col gap-2">
@@ -182,6 +241,16 @@ const Add = ({ token }) => {
           onChange={() => setBestseller(prev => !prev)}
         />
         Bestseller
+      </label>
+
+      {/* ✅ NEW CHECKBOX */}
+      <label className="flex gap-2">
+        <input
+          type="checkbox"
+          checked={showOnBanner}
+          onChange={() => setShowOnBanner(prev => !prev)}
+        />
+        Show on Homepage Banner
       </label>
 
       <button
